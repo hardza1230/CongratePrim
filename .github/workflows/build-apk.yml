@@ -32,7 +32,25 @@ jobs:
         with:
           gradle-version: '8.7'
 
+      # Restore the persistent signing key from a secret so every build is
+      # signed identically → phones accept new APKs as in-place updates.
+      # If the KEYSTORE_B64 secret is not set, we fall back to default signing.
+      - name: Restore signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > app/autotapper.keystore
+            echo "Signing key restored — builds will update in place."
+          else
+            echo "No KEYSTORE_B64 secret set — using default debug signing (update needs reinstall)."
+          fi
+
       - name: Build debug APK
+        # Feed the run number in as the version so every build supersedes the last.
+        env:
+          VERSION_CODE: ${{ github.run_number }}
+          VERSION_NAME: "1.0.${{ github.run_number }}"
         run: gradle assembleDebug --no-daemon --stacktrace
 
       - name: Upload APK artifact
