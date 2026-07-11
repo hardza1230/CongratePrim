@@ -8,6 +8,10 @@ on:
     branches: [ "**" ]
   workflow_dispatch:
 
+# Needed so the workflow can publish the APK as a Release asset.
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -37,3 +41,15 @@ jobs:
           name: autotapper-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      # Publish the raw .apk as a Release asset so it can be downloaded with a
+      # single tap on a phone — no login, no zip to extract. The "latest-apk"
+      # release is updated in place on every build.
+      - name: Publish APK to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest-apk
+          name: Latest AutoTapper APK
+          body: |
+            Auto-built debug APK. Tap **app-debug.apk** below to download and install it directly on your phone.
+          files: app/build/outputs/apk/debug/app-debug.apk
