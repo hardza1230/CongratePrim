@@ -37,6 +37,12 @@
         android:text="@string/panel_capture" />
 
     <Button
+        android:id="@+id/btnImgCond"
+        android:layout_width="120dp"
+        android:layout_height="wrap_content"
+        android:text="@string/panel_img_cond" />
+
+    <Button
         android:id="@+id/btnHide"
         android:layout_width="120dp"
         android:layout_height="wrap_content"

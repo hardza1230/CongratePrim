@@ -71,6 +71,12 @@ class MainActivity : AppCompatActivity() {
     private fun addRow(step: TapStep) {
         val row = LayoutInflater.from(this)
             .inflate(R.layout.item_step, stepContainer, false)
+        // Keep the original step on the row so image-condition data (which the
+        // UI doesn't edit) survives a save.
+        row.tag = step
+        if (step.condImage != null) {
+            row.findViewById<TextView>(R.id.condLabel).visibility = View.VISIBLE
+        }
         row.findViewById<EditText>(R.id.inputX).setText(step.x.toInt().toString())
         row.findViewById<EditText>(R.id.inputY).setText(step.y.toInt().toString())
         row.findViewById<EditText>(R.id.inputDelay).setText(step.postDelayMs.toString())
@@ -89,7 +95,16 @@ class MainActivity : AppCompatActivity() {
             val x = row.findViewById<EditText>(R.id.inputX).text.toString().toFloatOrNull() ?: continue
             val y = row.findViewById<EditText>(R.id.inputY).text.toString().toFloatOrNull() ?: continue
             val delay = row.findViewById<EditText>(R.id.inputDelay).text.toString().toLongOrNull() ?: 1000L
-            steps.add(TapStep(x, y, delay))
+            val orig = row.tag as? TapStep
+            steps.add(
+                TapStep(
+                    x = x, y = y, postDelayMs = delay,
+                    condImage = orig?.condImage,
+                    condCenterX = orig?.condCenterX ?: 0f,
+                    condCenterY = orig?.condCenterY ?: 0f,
+                    threshold = orig?.threshold ?: 0.90
+                )
+            )
         }
         ConfigStore.saveSteps(this, steps)
         ConfigStore.saveLoopCount(this, loopInput.text.toString().toIntOrNull() ?: 0)

@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.autotapper"
-        minSdk = 26          // TYPE_ACCESSIBILITY_OVERLAY + reliable dispatchGesture
+        minSdk = 30          // AccessibilityService.takeScreenshot() needs Android 11
         targetSdk = 34
         // versionCode grows every CI build (from the GitHub run number) so
         // Android accepts each new APK as an in-place UPDATE, not a downgrade.

@@ -1,41 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- One editable row in the step list on the main screen. -->
+<!-- One editable step. For image-conditional steps the label at the top is
+     shown, and the X/Y/wait fields below are the TAP TARGET. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:gravity="center_vertical"
-    android:paddingTop="4dp"
-    android:paddingBottom="4dp">
+    android:orientation="vertical"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
 
-    <EditText
-        android:id="@+id/inputX"
-        android:layout_width="0dp"
+    <TextView
+        android:id="@+id/condLabel"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:hint="@string/step_x"
-        android:inputType="numberDecimal" />
+        android:text="@string/cond_label"
+        android:textStyle="bold"
+        android:visibility="gone" />
 
-    <EditText
-        android:id="@+id/inputY"
-        android:layout_width="0dp"
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:hint="@string/step_y"
-        android:inputType="numberDecimal" />
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
 
-    <EditText
-        android:id="@+id/inputDelay"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1.3"
-        android:hint="@string/step_delay"
-        android:inputType="number" />
+        <EditText
+            android:id="@+id/inputX"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="@string/step_x"
+            android:inputType="numberDecimal" />
 
-    <Button
-        android:id="@+id/btnDelete"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="✕"
-        android:minWidth="40dp" />
+        <EditText
+            android:id="@+id/inputY"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="@string/step_y"
+            android:inputType="numberDecimal" />
+
+        <EditText
+            android:id="@+id/inputDelay"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1.3"
+            android:hint="@string/step_delay"
+            android:inputType="number" />
+
+        <Button
+            android:id="@+id/btnDelete"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="✕"
+            android:minWidth="40dp" />
+    </LinearLayout>
 </LinearLayout>

@@ -19,5 +19,8 @@
     <string name="panel_start">Start</string>
     <string name="panel_stop">Stop</string>
     <string name="panel_capture">Capture</string>
+    <string name="panel_img_cond">รอภาพ→กด</string>
     <string name="panel_hide">Hide</string>
+
+    <string name="cond_label">📷 รอให้ภาพนี้โผล่ก่อน แล้วค่อยแตะจุดด้านล่าง</string>
 </resources>

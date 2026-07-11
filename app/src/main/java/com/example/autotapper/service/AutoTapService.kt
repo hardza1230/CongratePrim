@@ -2,10 +2,13 @@ package com.example.autotapper.service
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.graphics.Bitmap
+import android.graphics.Color
 import android.graphics.Path
 import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
+import android.view.Display
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -17,19 +20,18 @@ import android.widget.Toast
 import com.example.autotapper.R
 import com.example.autotapper.data.ConfigStore
 import com.example.autotapper.model.TapStep
+import java.io.File
+import java.io.FileOutputStream
+import kotlin.math.abs
 
 /**
  * The heart of the app.
  *
- *  - Performs the configured taps by injecting gestures with [dispatchGesture].
- *  - Draws a small floating control panel and a full-screen capture overlay
- *    using TYPE_ACCESSIBILITY_OVERLAY windows. Because these belong to an
- *    accessibility service, they do NOT require the "draw over other apps"
- *    (SYSTEM_ALERT_WINDOW) permission.
- *
- * Educational note: an accessibility service is the only sanctioned way for an
- * Android app to tap on top of *other* apps. The user must switch it on by hand
- * in Settings > Accessibility; nothing here can bypass that.
+ *  - Performs taps by injecting gestures with [dispatchGesture].
+ *  - Reads the screen with [takeScreenshot] to support image-conditional steps
+ *    ("wait until this image appears, then tap there").
+ *  - Draws a floating control panel and capture overlays using
+ *    TYPE_ACCESSIBILITY_OVERLAY windows (no draw-over-apps permission needed).
  */
 class AutoTapService : AccessibilityService() {
 
@@ -46,13 +48,19 @@ class AutoTapService : AccessibilityService() {
     private var currentIndex = 0
     private var currentLoop = 0
 
+    companion object {
+        private const val PATCH_SIZE = 120        // reference image is a square patch
+        private const val RECHECK_MS = 1100L      // re-check interval (screenshot is rate-limited ~1s)
+        private const val CAPTURE_SETTLE_MS = 200L // let the capture scrim disappear before screenshotting
+        private const val MATCH_GRID = 16         // downscale size used when comparing images
+    }
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         showControlPanel()
     }
 
-    // We don't inspect screen content, so these are intentionally empty.
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
     override fun onInterrupt() {}
 
@@ -85,9 +93,14 @@ class AutoTapService : AccessibilityService() {
 
         panel.findViewById<Button>(R.id.btnStart).setOnClickListener { startMacro() }
         panel.findViewById<Button>(R.id.btnStop).setOnClickListener { stopMacro() }
-        panel.findViewById<Button>(R.id.btnCapture).setOnClickListener { showCaptureOverlay() }
+        panel.findViewById<Button>(R.id.btnCapture).setOnClickListener {
+            showCapture { x, y ->
+                ConfigStore.addStep(this, TapStep(x, y, postDelayMs = 1000L))
+                toast("Captured tap (${x.toInt()}, ${y.toInt()})")
+            }
+        }
+        panel.findViewById<Button>(R.id.btnImgCond).setOnClickListener { captureImageConditionStep() }
         panel.findViewById<Button>(R.id.btnHide).setOnClickListener {
-            // Just push the panel to the screen edge; keep it reachable.
             lp.x = 0
             lp.y = 0
             windowManager.updateViewLayout(panel, lp)
@@ -99,7 +112,6 @@ class AutoTapService : AccessibilityService() {
         controlPanel = panel
     }
 
-    /** Lets the user drag the panel around by its handle. */
     private fun enableDragging(panel: View, lp: WindowManager.LayoutParams) {
         val handle = panel.findViewById<View>(R.id.dragHandle)
         var startX = 0
@@ -132,10 +144,10 @@ class AutoTapService : AccessibilityService() {
     }
 
     // ---------------------------------------------------------------------
-    // Capture overlay: record a tap point by touching the screen
+    // Full-screen capture overlay: records one touch point
     // ---------------------------------------------------------------------
 
-    private fun showCaptureOverlay() {
+    private fun showCapture(onTap: (Float, Float) -> Unit) {
         if (captureOverlay != null) return
 
         val overlay = View(this).apply {
@@ -153,14 +165,8 @@ class AutoTapService : AccessibilityService() {
             if (event.action == MotionEvent.ACTION_DOWN) {
                 val x = event.rawX
                 val y = event.rawY
-                // Default 1s wait after the tap; the user can fine-tune it in the app.
-                ConfigStore.addStep(this, TapStep(x, y, postDelayMs = 1000L))
-                Toast.makeText(
-                    this,
-                    "Captured (${x.toInt()}, ${y.toInt()})",
-                    Toast.LENGTH_SHORT
-                ).show()
                 removeCaptureOverlay()
+                onTap(x, y)
                 true
             } else false
         }
@@ -174,6 +180,105 @@ class AutoTapService : AccessibilityService() {
         captureOverlay = null
     }
 
+    /**
+     * Two-tap flow to build an image-conditional step:
+     *   1) tap where the trigger image lives  -> screenshot + save that patch
+     *   2) tap where the action should happen -> store as the tap target
+     */
+    private fun captureImageConditionStep() {
+        toast("1) แตะตรงตำแหน่ง 'ภาพ' ที่จะรอ")
+        showCapture { imgX, imgY ->
+            // Let the scrim clear, then grab the screen and crop the reference patch.
+            handler.postDelayed({
+                captureScreen(onBitmap = { bmp ->
+                    val patch = crop(bmp, imgX, imgY, PATCH_SIZE)
+                    bmp.recycle()
+                    if (patch == null) {
+                        toast("จับภาพไม่ได้ (ใกล้ขอบจอเกินไป)")
+                        return@captureScreen
+                    }
+                    val fname = "cond_${System.currentTimeMillis()}.png"
+                    savePng(patch, File(filesDir, fname))
+                    patch.recycle()
+
+                    toast("2) แตะ 'จุดที่จะกด'")
+                    showCapture { tapX, tapY ->
+                        ConfigStore.addStep(
+                            this,
+                            TapStep(
+                                x = tapX, y = tapY, postDelayMs = 1000L,
+                                condImage = fname, condCenterX = imgX, condCenterY = imgY
+                            )
+                        )
+                        toast("เพิ่มแล้ว: รอภาพ → กด (${tapX.toInt()}, ${tapY.toInt()})")
+                    }
+                }, onError = { toast("ถ่ายภาพหน้าจอไม่ได้") })
+            }, CAPTURE_SETTLE_MS)
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // Screen capture + image comparison
+    // ---------------------------------------------------------------------
+
+    private fun captureScreen(onBitmap: (Bitmap) -> Unit, onError: () -> Unit) {
+        try {
+            takeScreenshot(
+                Display.DEFAULT_DISPLAY,
+                mainExecutor,
+                object : TakeScreenshotCallback {
+                    override fun onSuccess(screenshot: ScreenshotResult) {
+                        val buffer = screenshot.hardwareBuffer
+                        val hw = Bitmap.wrapHardwareBuffer(buffer, screenshot.colorSpace)
+                        val bmp = hw?.copy(Bitmap.Config.ARGB_8888, false)
+                        hw?.recycle()
+                        buffer.close()
+                        if (bmp != null) onBitmap(bmp) else onError()
+                    }
+
+                    override fun onFailure(errorCode: Int) = onError()
+                }
+            )
+        } catch (e: Exception) {
+            onError()
+        }
+    }
+
+    private fun crop(src: Bitmap, cx: Float, cy: Float, size: Int): Bitmap? {
+        if (src.width < size || src.height < size) return null
+        val half = size / 2
+        val left = (cx - half).toInt().coerceIn(0, src.width - size)
+        val top = (cy - half).toInt().coerceIn(0, src.height - size)
+        return Bitmap.createBitmap(src, left, top, size, size)
+    }
+
+    private fun savePng(bmp: Bitmap, file: File) {
+        runCatching {
+            FileOutputStream(file).use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }
+    }
+
+    /** Similarity in 0..1 (1 == identical), compared on a small downscaled grid. */
+    private fun similarity(a: Bitmap, b: Bitmap): Double {
+        val n = MATCH_GRID
+        val sa = Bitmap.createScaledBitmap(a, n, n, true)
+        val sb = Bitmap.createScaledBitmap(b, n, n, true)
+        var diff = 0L
+        for (y in 0 until n) {
+            for (x in 0 until n) {
+                val pa = sa.getPixel(x, y)
+                val pb = sb.getPixel(x, y)
+                diff += abs(Color.red(pa) - Color.red(pb)).toLong()
+                diff += abs(Color.green(pa) - Color.green(pb)).toLong()
+                diff += abs(Color.blue(pa) - Color.blue(pb)).toLong()
+            }
+        }
+        sa.recycle()
+        sb.recycle()
+        val maxDiff = n.toLong() * n * 3 * 255
+        return 1.0 - diff.toDouble() / maxDiff
+    }
+
     // ---------------------------------------------------------------------
     // Macro engine
     // ---------------------------------------------------------------------
@@ -183,13 +288,13 @@ class AutoTapService : AccessibilityService() {
         steps = ConfigStore.loadSteps(this)
         loopCount = ConfigStore.loadLoopCount(this)
         if (steps.isEmpty()) {
-            Toast.makeText(this, "No steps configured", Toast.LENGTH_SHORT).show()
+            toast("No steps configured")
             return
         }
         currentIndex = 0
         currentLoop = 0
         running = true
-        Toast.makeText(this, "AutoTapper started", Toast.LENGTH_SHORT).show()
+        toast("AutoTapper started")
         scheduleNext(0)
     }
 
@@ -197,7 +302,7 @@ class AutoTapService : AccessibilityService() {
         if (!running) return
         running = false
         handler.removeCallbacksAndMessages(null)
-        Toast.makeText(this, "AutoTapper stopped", Toast.LENGTH_SHORT).show()
+        toast("AutoTapper stopped")
     }
 
     private fun scheduleNext(delayMs: Long) {
@@ -208,7 +313,6 @@ class AutoTapService : AccessibilityService() {
     private fun runStep() {
         if (!running) return
 
-        // Wrap around at the end of the sequence, honouring the loop limit.
         if (currentIndex >= steps.size) {
             currentIndex = 0
             currentLoop++
@@ -219,11 +323,50 @@ class AutoTapService : AccessibilityService() {
         }
 
         val step = steps[currentIndex]
-        currentIndex++
-        performTap(step) {
-            // "tap → wait → next": schedule the following step after the delay.
-            scheduleNext(step.postDelayMs)
+        if (step.condImage == null) {
+            currentIndex++
+            performTap(step) { scheduleNext(step.postDelayMs) }
+        } else {
+            checkConditionThenAct(step)
         }
+    }
+
+    /** For image-conditional steps: tap only once the image matches; else re-check. */
+    private fun checkConditionThenAct(step: TapStep) {
+        val ref = loadRef(step.condImage)
+        if (ref == null) {
+            // Reference missing — treat as a plain tap so the macro doesn't stall.
+            currentIndex++
+            performTap(step) { scheduleNext(step.postDelayMs) }
+            return
+        }
+        captureScreen(
+            onBitmap = { bmp ->
+                val patch = crop(bmp, step.condCenterX, step.condCenterY, PATCH_SIZE)
+                bmp.recycle()
+                val sim = if (patch != null) similarity(patch, ref) else 0.0
+                patch?.recycle()
+                ref.recycle()
+                if (!running) return@captureScreen
+                if (sim >= step.threshold) {
+                    currentIndex++
+                    performTap(step) { scheduleNext(step.postDelayMs) }
+                } else {
+                    scheduleNext(RECHECK_MS) // keep waiting on the same step
+                }
+            },
+            onError = {
+                ref.recycle()
+                scheduleNext(RECHECK_MS)
+            }
+        )
+    }
+
+    private fun loadRef(name: String?): Bitmap? {
+        if (name == null) return null
+        val f = File(filesDir, name)
+        if (!f.exists()) return null
+        return runCatching { android.graphics.BitmapFactory.decodeFile(f.absolutePath) }.getOrNull()
     }
 
     private fun performTap(step: TapStep, onDone: () -> Unit) {
@@ -239,7 +382,10 @@ class AutoTapService : AccessibilityService() {
             },
             handler
         )
-        // If the system refuses the gesture, don't stall the loop.
         if (!dispatched) onDone()
+    }
+
+    private fun toast(msg: String) {
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
     }
 }

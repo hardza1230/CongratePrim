@@ -29,7 +29,11 @@ object ConfigStore {
                     x = o.getDouble("x").toFloat(),
                     y = o.getDouble("y").toFloat(),
                     postDelayMs = o.getLong("delay"),
-                    tapDurationMs = o.optLong("dur", 50L)
+                    tapDurationMs = o.optLong("dur", 50L),
+                    condImage = if (o.isNull("cimg")) null else o.optString("cimg", null),
+                    condCenterX = o.optDouble("ccx", 0.0).toFloat(),
+                    condCenterY = o.optDouble("ccy", 0.0).toFloat(),
+                    threshold = o.optDouble("thr", 0.90)
                 )
             )
         }
@@ -39,13 +43,16 @@ object ConfigStore {
     fun saveSteps(ctx: Context, steps: List<TapStep>) {
         val arr = JSONArray()
         for (s in steps) {
-            arr.put(
-                JSONObject()
-                    .put("x", s.x.toDouble())
-                    .put("y", s.y.toDouble())
-                    .put("delay", s.postDelayMs)
-                    .put("dur", s.tapDurationMs)
-            )
+            val o = JSONObject()
+                .put("x", s.x.toDouble())
+                .put("y", s.y.toDouble())
+                .put("delay", s.postDelayMs)
+                .put("dur", s.tapDurationMs)
+                .put("ccx", s.condCenterX.toDouble())
+                .put("ccy", s.condCenterY.toDouble())
+                .put("thr", s.threshold)
+            if (s.condImage != null) o.put("cimg", s.condImage)
+            arr.put(o)
         }
         prefs(ctx).edit().putString(KEY_STEPS, arr.toString()).apply()
     }

@@ -60,10 +60,26 @@ You need **Android Studio** (Giraffe or newer) or the Android SDK + Gradle 8.7.
 3. Set **Loops** (`0` = run forever) and tweak the wait times.
 4. Press **Start** on the floating panel. Press **Stop** any time.
 
+## Image-conditional taps ("wait for image → tap")
+
+Besides plain timed taps, a step can wait for something on screen before it
+taps. On the floating panel press **รอภาพ→กด**, then:
+
+1. tap the spot where the trigger image appears — the app screenshots and saves
+   that small patch as a reference;
+2. tap where the action should happen — stored as the tap target.
+
+At run time the service screenshots the screen (via
+`AccessibilityService.takeScreenshot`), compares the reference patch at its
+saved location, and only taps once it matches (similarity ≥ threshold). Until
+then it keeps re-checking about once a second. Great for "when this button
+shows up, tap here" automation.
+
 ## Notes & limits
 
-- `minSdk 26` (Android 8.0) for `TYPE_ACCESSIBILITY_OVERLAY` and reliable
-  gesture dispatch.
+- `minSdk 30` (Android 11) — `takeScreenshot()` requires it.
+- Image matching is a fast, tolerant patch comparison at a fixed location, not a
+  full-screen search; the trigger image should appear in roughly the same spot.
 - Coordinates are absolute pixels, so a macro recorded on one screen size won't
   line up on a very different one.
 - The service performs **taps only** (single-point gestures). Swipes/drags are a
