@@ -1,0 +1,23 @@
+<resources>
+    <string name="app_name">AutoTapper</string>
+    <string name="service_label">AutoTapper Service</string>
+    <string name="accessibility_description">Lets AutoTapper perform the taps you configure and show its floating control panel. No screen content is read.</string>
+
+    <string name="enable_service">Enable Accessibility Service</string>
+    <string name="service_enabled">Accessibility service: ENABLED</string>
+    <string name="service_disabled">Accessibility service: DISABLED — tap below to enable</string>
+
+    <string name="loop_count_hint">Loops (0 = forever)</string>
+    <string name="add_step">Add step manually</string>
+    <string name="capture_hint">Tip: use CAPTURE on the floating panel to record a tap point by touching the screen.</string>
+
+    <string name="step_x">X</string>
+    <string name="step_y">Y</string>
+    <string name="step_delay">Wait (ms)</string>
+    <string name="delete">Delete</string>
+
+    <string name="panel_start">Start</string>
+    <string name="panel_stop">Stop</string>
+    <string name="panel_capture">Capture</string>
+    <string name="panel_hide">Hide</string>
+</resources>
