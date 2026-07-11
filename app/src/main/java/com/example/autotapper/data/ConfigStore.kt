@@ -30,7 +30,7 @@ object ConfigStore {
                     y = o.getDouble("y").toFloat(),
                     postDelayMs = o.getLong("delay"),
                     tapDurationMs = o.optLong("dur", 50L),
-                    condImage = if (o.isNull("cimg")) null else o.optString("cimg", null),
+                    condImage = if (o.has("cimg") && !o.isNull("cimg")) o.getString("cimg") else null,
                     condCenterX = o.optDouble("ccx", 0.0).toFloat(),
                     condCenterY = o.optDouble("ccy", 0.0).toFloat(),
                     threshold = o.optDouble("thr", 0.90)
