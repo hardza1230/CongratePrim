@@ -41,6 +41,10 @@ class AutoTapService : AccessibilityService() {
     private var controlPanel: View? = null
     private var captureOverlay: View? = null
 
+    // --- on-screen draggable tap markers (edit mode) ---
+    private val markerViews = mutableListOf<View>()
+    private var editMode = false
+
     // --- macro run state ---
     private var running = false
     private var steps: List<TapStep> = emptyList()
@@ -53,6 +57,9 @@ class AutoTapService : AccessibilityService() {
         private const val RECHECK_MS = 1100L      // re-check interval (screenshot is rate-limited ~1s)
         private const val CAPTURE_SETTLE_MS = 200L // let the capture scrim disappear before screenshotting
         private const val MATCH_GRID = 16         // downscale size used when comparing images
+        private const val MARKER_SIZE_DP = 48     // diameter of the draggable tap markers
+        private const val DRAG_SLOP_DP = 8        // movement before a touch counts as a drag
+        private const val LONG_PRESS_MS = 600L    // hold on a marker to delete it
     }
 
     override fun onServiceConnected() {
@@ -66,6 +73,7 @@ class AutoTapService : AccessibilityService() {
 
     override fun onDestroy() {
         stopMacro()
+        hideMarkers()
         removeControlPanel()
         removeCaptureOverlay()
         super.onDestroy()
@@ -93,12 +101,8 @@ class AutoTapService : AccessibilityService() {
 
         panel.findViewById<Button>(R.id.btnStart).setOnClickListener { startMacro() }
         panel.findViewById<Button>(R.id.btnStop).setOnClickListener { stopMacro() }
-        panel.findViewById<Button>(R.id.btnCapture).setOnClickListener {
-            showCapture { x, y ->
-                ConfigStore.addStep(this, TapStep(x, y, postDelayMs = 1000L))
-                toast("Captured tap (${x.toInt()}, ${y.toInt()})")
-            }
-        }
+        panel.findViewById<Button>(R.id.btnAddPoint).setOnClickListener { addPointAtCenter() }
+        panel.findViewById<Button>(R.id.btnEditPoints).setOnClickListener { toggleEditMode() }
         panel.findViewById<Button>(R.id.btnImgCond).setOnClickListener { captureImageConditionStep() }
         panel.findViewById<Button>(R.id.btnHide).setOnClickListener {
             lp.x = 0
@@ -144,6 +148,137 @@ class AutoTapService : AccessibilityService() {
     }
 
     // ---------------------------------------------------------------------
+    // Draggable on-screen tap markers (the "popular app" way to set points)
+    // ---------------------------------------------------------------------
+
+    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
+
+    private fun toggleEditMode() {
+        editMode = !editMode
+        if (editMode) {
+            showMarkers()
+            toast("โหมดแก้ไข: ลากวงกลมเพื่อย้าย • ลากค้างเพื่อลบ")
+        } else {
+            hideMarkers()
+        }
+    }
+
+    /** Draw one draggable numbered circle per tap step at its coordinates. */
+    private fun showMarkers() {
+        hideMarkers()
+        val size = dp(MARKER_SIZE_DP)
+        val steps = ConfigStore.loadSteps(this)
+        steps.forEachIndexed { index, step ->
+            val marker = LayoutInflater.from(this)
+                .inflate(R.layout.marker_view, null) as android.widget.TextView
+            marker.text = (index + 1).toString()
+            val lp = WindowManager.LayoutParams(
+                size, size,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+                PixelFormat.TRANSLUCENT
+            ).apply {
+                gravity = Gravity.TOP or Gravity.START
+                x = (step.x - size / 2).toInt()
+                y = (step.y - size / 2).toInt()
+            }
+            attachMarkerDrag(marker, lp, index, size)
+            runCatching { windowManager.addView(marker, lp) }
+            markerViews.add(marker)
+        }
+        if (steps.isEmpty()) toast("ยังไม่มีจุด — กด ➕ จุด เพื่อเพิ่ม")
+    }
+
+    private fun hideMarkers() {
+        markerViews.forEach { runCatching { windowManager.removeView(it) } }
+        markerViews.clear()
+    }
+
+    private fun addPointAtCenter() {
+        val dm = resources.displayMetrics
+        ConfigStore.addStep(
+            this,
+            TapStep(x = dm.widthPixels / 2f, y = dm.heightPixels / 2f, postDelayMs = 1000L)
+        )
+        editMode = true
+        showMarkers() // re-draw with the new marker included
+        toast("เพิ่มจุดแล้ว ลากไปวางตำแหน่งที่ต้องการ")
+    }
+
+    private fun attachMarkerDrag(
+        marker: View,
+        lp: WindowManager.LayoutParams,
+        index: Int,
+        size: Int
+    ) {
+        val slop = dp(DRAG_SLOP_DP)
+        var downX = 0f
+        var downY = 0f
+        var startLpX = 0
+        var startLpY = 0
+        var moved = false
+        val longPress = Runnable { deleteStep(index) }
+
+        marker.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    downX = event.rawX
+                    downY = event.rawY
+                    startLpX = lp.x
+                    startLpY = lp.y
+                    moved = false
+                    handler.postDelayed(longPress, LONG_PRESS_MS)
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - downX
+                    val dy = event.rawY - downY
+                    if (!moved && (abs(dx) > slop || abs(dy) > slop)) {
+                        moved = true
+                        handler.removeCallbacks(longPress) // a drag is not a long-press
+                    }
+                    if (moved) {
+                        lp.x = startLpX + dx.toInt()
+                        lp.y = startLpY + dy.toInt()
+                        runCatching { windowManager.updateViewLayout(marker, lp) }
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    handler.removeCallbacks(longPress)
+                    if (moved) {
+                        updateStepPosition(
+                            index,
+                            (lp.x + size / 2).toFloat(),
+                            (lp.y + size / 2).toFloat()
+                        )
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun updateStepPosition(index: Int, x: Float, y: Float) {
+        val steps = ConfigStore.loadSteps(this)
+        if (index in steps.indices) {
+            steps[index] = steps[index].copy(x = x, y = y)
+            ConfigStore.saveSteps(this, steps)
+        }
+    }
+
+    private fun deleteStep(index: Int) {
+        val steps = ConfigStore.loadSteps(this)
+        if (index in steps.indices) {
+            steps.removeAt(index)
+            ConfigStore.saveSteps(this, steps)
+            toast("ลบจุดที่ ${index + 1} แล้ว")
+            showMarkers() // renumber the remaining markers
+        }
+    }
+
+    // ---------------------------------------------------------------------
     // Full-screen capture overlay: records one touch point
     // ---------------------------------------------------------------------
 
@@ -186,6 +321,8 @@ class AutoTapService : AccessibilityService() {
      *   2) tap where the action should happen -> store as the tap target
      */
     private fun captureImageConditionStep() {
+        editMode = false
+        hideMarkers() // keep markers out of the reference screenshot
         toast("1) แตะตรงตำแหน่ง 'ภาพ' ที่จะรอ")
         showCapture { imgX, imgY ->
             // Let the scrim clear, then grab the screen and crop the reference patch.
@@ -285,6 +422,8 @@ class AutoTapService : AccessibilityService() {
 
     private fun startMacro() {
         if (running) return
+        editMode = false
+        hideMarkers() // markers must be gone so they aren't tapped or screenshotted
         steps = ConfigStore.loadSteps(this)
         loopCount = ConfigStore.loadLoopCount(this)
         if (steps.isEmpty()) {

@@ -10,18 +10,19 @@
 
     <string name="loop_count_hint">Loops (0 = forever)</string>
     <string name="add_step">Add step manually</string>
-    <string name="capture_hint">Tip: use CAPTURE on the floating panel to record a tap point by touching the screen.</string>
+    <string name="capture_hint">วิธีใช้: กด ➕จุด บนแผงลอยเพื่อเพิ่มจุดแตะ แล้วลากวงกลมไปวางตรงที่ต้องการ • ลากค้างที่วงกลมเพื่อลบ • กด 📷ภาพ เพื่อตั้งแบบ “รอภาพ→กด” • ตั้งเวลารอ (ms) ของแต่ละจุดได้ในรายการด้านบน</string>
 
     <string name="step_x">X</string>
     <string name="step_y">Y</string>
     <string name="step_delay">Wait (ms)</string>
     <string name="delete">Delete</string>
 
-    <string name="panel_start">Start</string>
-    <string name="panel_stop">Stop</string>
-    <string name="panel_capture">Capture</string>
-    <string name="panel_img_cond">รอภาพ→กด</string>
-    <string name="panel_hide">Hide</string>
+    <string name="panel_start">▶ เริ่ม</string>
+    <string name="panel_stop">⏹ หยุด</string>
+    <string name="panel_add_point">➕ จุด</string>
+    <string name="panel_edit_points">✎ แก้ไข</string>
+    <string name="panel_img_cond">📷 ภาพ</string>
+    <string name="panel_hide">👁 ซ่อน</string>
 
     <string name="cond_label">📷 รอให้ภาพนี้โผล่ก่อน แล้วค่อยแตะจุดด้านล่าง</string>
 </resources>
