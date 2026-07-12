@@ -53,7 +53,6 @@ class AutoTapService : AccessibilityService() {
     private var currentLoop = 0
 
     companion object {
-        private const val PATCH_SIZE = 120        // reference image is a square patch
         private const val RECHECK_MS = 1100L      // re-check interval (screenshot is rate-limited ~1s)
         private const val CAPTURE_SETTLE_MS = 200L // let the capture scrim disappear before screenshotting
         private const val MATCH_GRID = 16         // downscale size used when comparing images
@@ -76,6 +75,7 @@ class AutoTapService : AccessibilityService() {
         hideMarkers()
         removeControlPanel()
         removeCaptureOverlay()
+        removeRegionOverlay()
         super.onDestroy()
     }
 
@@ -316,22 +316,22 @@ class AutoTapService : AccessibilityService() {
     }
 
     /**
-     * Two-tap flow to build an image-conditional step:
-     *   1) tap where the trigger image lives  -> screenshot + save that patch
-     *   2) tap where the action should happen -> store as the tap target
+     * Flow to build an image-conditional step:
+     *   1) DRAG a box around the button/area to watch -> screenshot + save it
+     *   2) tap where the action should happen          -> store as the tap target
      */
     private fun captureImageConditionStep() {
         editMode = false
         hideMarkers() // keep markers out of the reference screenshot
-        toast("1) แตะตรงตำแหน่ง 'ภาพ' ที่จะรอ")
-        showCapture { imgX, imgY ->
-            // Let the scrim clear, then grab the screen and crop the reference patch.
+        toast("1) ลากคลุมกรอบรอบ 'ปุ่ม/ภาพ' ที่จะรอ")
+        showRegionSelect { rect ->
+            // Let the selection overlay clear, then grab the screen and crop the box.
             handler.postDelayed({
                 captureScreen(onBitmap = { bmp ->
-                    val patch = crop(bmp, imgX, imgY, PATCH_SIZE)
+                    val patch = cropRect(bmp, rect.left, rect.top, rect.width(), rect.height())
                     bmp.recycle()
                     if (patch == null) {
-                        toast("จับภาพไม่ได้ (ใกล้ขอบจอเกินไป)")
+                        toast("เลือกบริเวณไม่ได้ ลองใหม่อีกครั้ง")
                         return@captureScreen
                     }
                     val fname = "cond_${System.currentTimeMillis()}.png"
@@ -344,14 +344,42 @@ class AutoTapService : AccessibilityService() {
                             this,
                             TapStep(
                                 x = tapX, y = tapY, postDelayMs = 1000L,
-                                condImage = fname, condCenterX = imgX, condCenterY = imgY
+                                condImage = fname,
+                                condLeft = rect.left, condTop = rect.top,
+                                condW = rect.width(), condH = rect.height()
                             )
                         )
-                        toast("เพิ่มแล้ว: รอภาพ → กด (${tapX.toInt()}, ${tapY.toInt()})")
+                        toast("เพิ่มแล้ว: รอภาพในกรอบ → กด (${tapX.toInt()}, ${tapY.toInt()})")
                     }
                 }, onError = { toast("ถ่ายภาพหน้าจอไม่ได้") })
             }, CAPTURE_SETTLE_MS)
         }
+    }
+
+    private var regionOverlay: View? = null
+
+    private fun showRegionSelect(onSelected: (android.graphics.Rect) -> Unit) {
+        removeRegionOverlay()
+        val view = RegionSelectView(this) { rect ->
+            removeRegionOverlay()
+            onSelected(rect)
+        }
+        val lp = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.MATCH_PARENT,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        )
+        runCatching { windowManager.addView(view, lp) }
+        regionOverlay = view
+    }
+
+    private fun removeRegionOverlay() {
+        regionOverlay?.let { runCatching { windowManager.removeView(it) } }
+        regionOverlay = null
     }
 
     // ---------------------------------------------------------------------
@@ -381,12 +409,15 @@ class AutoTapService : AccessibilityService() {
         }
     }
 
-    private fun crop(src: Bitmap, cx: Float, cy: Float, size: Int): Bitmap? {
-        if (src.width < size || src.height < size) return null
-        val half = size / 2
-        val left = (cx - half).toInt().coerceIn(0, src.width - size)
-        val top = (cy - half).toInt().coerceIn(0, src.height - size)
-        return Bitmap.createBitmap(src, left, top, size, size)
+    /** Crop an arbitrary rectangle, clamped to the bitmap bounds. */
+    private fun cropRect(src: Bitmap, left: Int, top: Int, w: Int, h: Int): Bitmap? {
+        if (w <= 0 || h <= 0) return null
+        val l = left.coerceIn(0, (src.width - 1).coerceAtLeast(0))
+        val t = top.coerceIn(0, (src.height - 1).coerceAtLeast(0))
+        val ww = w.coerceAtMost(src.width - l)
+        val hh = h.coerceAtMost(src.height - t)
+        if (ww <= 0 || hh <= 0) return null
+        return Bitmap.createBitmap(src, l, t, ww, hh)
     }
 
     private fun savePng(bmp: Bitmap, file: File) {
@@ -481,7 +512,7 @@ class AutoTapService : AccessibilityService() {
         }
         captureScreen(
             onBitmap = { bmp ->
-                val patch = crop(bmp, step.condCenterX, step.condCenterY, PATCH_SIZE)
+                val patch = cropRect(bmp, step.condLeft, step.condTop, step.condW, step.condH)
                 bmp.recycle()
                 val sim = if (patch != null) similarity(patch, ref) else 0.0
                 patch?.recycle()

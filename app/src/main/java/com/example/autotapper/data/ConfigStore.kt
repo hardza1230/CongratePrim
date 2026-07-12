@@ -31,8 +31,10 @@ object ConfigStore {
                     postDelayMs = o.getLong("delay"),
                     tapDurationMs = o.optLong("dur", 50L),
                     condImage = if (o.has("cimg") && !o.isNull("cimg")) o.getString("cimg") else null,
-                    condCenterX = o.optDouble("ccx", 0.0).toFloat(),
-                    condCenterY = o.optDouble("ccy", 0.0).toFloat(),
+                    condLeft = o.optInt("cl", 0),
+                    condTop = o.optInt("ct", 0),
+                    condW = o.optInt("cw", 0),
+                    condH = o.optInt("ch", 0),
                     threshold = o.optDouble("thr", 0.90)
                 )
             )
@@ -48,8 +50,10 @@ object ConfigStore {
                 .put("y", s.y.toDouble())
                 .put("delay", s.postDelayMs)
                 .put("dur", s.tapDurationMs)
-                .put("ccx", s.condCenterX.toDouble())
-                .put("ccy", s.condCenterY.toDouble())
+                .put("cl", s.condLeft)
+                .put("ct", s.condTop)
+                .put("cw", s.condW)
+                .put("ch", s.condH)
                 .put("thr", s.threshold)
             if (s.condImage != null) o.put("cimg", s.condImage)
             arr.put(o)

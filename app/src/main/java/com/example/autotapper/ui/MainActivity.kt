@@ -109,8 +109,10 @@ class MainActivity : AppCompatActivity() {
                 TapStep(
                     x = x, y = y, postDelayMs = delay,
                     condImage = orig?.condImage,
-                    condCenterX = orig?.condCenterX ?: 0f,
-                    condCenterY = orig?.condCenterY ?: 0f,
+                    condLeft = orig?.condLeft ?: 0,
+                    condTop = orig?.condTop ?: 0,
+                    condW = orig?.condW ?: 0,
+                    condH = orig?.condH ?: 0,
                     threshold = orig?.threshold ?: 0.90
                 )
             )
