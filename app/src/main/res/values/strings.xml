@@ -4,6 +4,7 @@
     <string name="accessibility_description">Lets AutoTapper perform the taps you configure and show its floating control panel. No screen content is read.</string>
 
     <string name="enable_service">Enable Accessibility Service</string>
+    <string name="check_update">เช็คอัปเดต</string>
     <string name="service_enabled">Accessibility service: ENABLED</string>
     <string name="service_disabled">Accessibility service: DISABLED — tap below to enable</string>
 

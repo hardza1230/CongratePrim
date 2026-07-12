@@ -15,6 +15,7 @@ import com.example.autotapper.R
 import com.example.autotapper.data.ConfigStore
 import com.example.autotapper.model.TapStep
 import com.example.autotapper.service.AutoTapService
+import com.example.autotapper.update.UpdateManager
 
 /**
  * Configuration screen. It never taps anything itself — it only edits the step
@@ -30,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+        title = "AutoTapper v${com.example.autotapper.BuildConfig.VERSION_NAME}"
 
         statusText = findViewById(R.id.statusText)
         loopInput = findViewById(R.id.loopInput)
@@ -44,6 +46,13 @@ class MainActivity : AppCompatActivity() {
             ConfigStore.addStep(this, TapStep(x = 540f, y = 1200f, postDelayMs = 1000L))
             reloadSteps()
         }
+
+        findViewById<Button>(R.id.btnCheckUpdate).setOnClickListener {
+            UpdateManager.checkForUpdate(this, silent = false)
+        }
+
+        // Silently check the server for a newer APK each time the app opens.
+        UpdateManager.checkForUpdate(this)
     }
 
     override fun onResume() {

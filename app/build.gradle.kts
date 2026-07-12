@@ -59,6 +59,7 @@ android {
     }
     buildFeatures {
         viewBinding = true
+        buildConfig = true   // exposes BuildConfig.VERSION_CODE for the updater
     }
 }
 

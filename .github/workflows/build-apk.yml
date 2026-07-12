@@ -63,6 +63,18 @@ jobs:
       # Publish the raw .apk as a Release asset so it can be downloaded with a
       # single tap on a phone — no login, no zip to extract. The "latest-apk"
       # release is updated in place on every build.
+      # Version manifest the app fetches on launch to detect a newer build.
+      - name: Write version.json
+        run: |
+          cat > version.json <<EOF
+          {
+            "versionCode": ${{ github.run_number }},
+            "versionName": "1.0.${{ github.run_number }}",
+            "apkUrl": "https://github.com/hardza1230/CongratePrim/releases/download/latest-apk/app-debug.apk",
+            "notes": "อัปเดตอัตโนมัติ"
+          }
+          EOF
+
       - name: Publish APK to Release
         uses: softprops/action-gh-release@v2
         with:
@@ -70,4 +82,6 @@ jobs:
           name: Latest AutoTapper APK
           body: |
             Auto-built debug APK. Tap **app-debug.apk** below to download and install it directly on your phone.
-          files: app/build/outputs/apk/debug/app-debug.apk
+          files: |
+            app/build/outputs/apk/debug/app-debug.apk
+            version.json
