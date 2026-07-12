@@ -7,9 +7,13 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.view.LayoutInflater
+import android.widget.ProgressBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.FileProvider
 import com.example.autotapper.BuildConfig
+import com.example.autotapper.R
 import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
@@ -40,9 +44,10 @@ object UpdateManager {
                 val remoteCode = o.getInt("versionCode")
                 val remoteName = o.optString("versionName", remoteCode.toString())
                 val apkUrl = o.optString("apkUrl", "")
+                val notes = o.optString("notes", "")
                 when {
                     remoteCode > BuildConfig.VERSION_CODE && apkUrl.isNotEmpty() ->
-                        main.post { promptUpdate(activity, remoteName, apkUrl) }
+                        main.post { promptUpdate(activity, remoteName, notes, apkUrl) }
                     !silent ->
                         main.post { toast(activity, "เป็นเวอร์ชันล่าสุดแล้ว") }
                 }
@@ -52,12 +57,17 @@ object UpdateManager {
         }.start()
     }
 
-    private fun promptUpdate(activity: Activity, versionName: String, apkUrl: String) {
+    private fun promptUpdate(activity: Activity, versionName: String, notes: String, apkUrl: String) {
         if (activity.isFinishing) return
+        val msg = buildString {
+            append("เวอร์ชัน $versionName พร้อมให้อัปเดต")
+            if (notes.isNotBlank()) append("\n\n$notes")
+            append("\n\nต้องการดาวน์โหลดและติดตั้งเลยไหม?")
+        }
         AlertDialog.Builder(activity)
-            .setTitle("มีเวอร์ชันใหม่")
-            .setMessage("เวอร์ชัน $versionName พร้อมให้อัปเดต ต้องการดาวน์โหลดและติดตั้งเลยไหม?")
-            .setPositiveButton("อัปเดต") { _, _ -> ensureCanInstallThenDownload(activity, apkUrl) }
+            .setTitle("✨ มีเวอร์ชันใหม่")
+            .setMessage(msg)
+            .setPositiveButton("อัปเดตเลย") { _, _ -> ensureCanInstallThenDownload(activity, apkUrl) }
             .setNegativeButton("ภายหลัง", null)
             .show()
     }
@@ -77,14 +87,35 @@ object UpdateManager {
     }
 
     private fun downloadAndInstall(activity: Activity, apkUrl: String) {
-        toast(activity, "กำลังดาวน์โหลดอัปเดต…")
+        val view = LayoutInflater.from(activity).inflate(R.layout.dialog_progress, null)
+        val bar = view.findViewById<ProgressBar>(R.id.progressBar)
+        val text = view.findViewById<TextView>(R.id.progressText)
+        bar.isIndeterminate = true
+        val dialog = AlertDialog.Builder(activity)
+            .setView(view)
+            .setCancelable(false)
+            .create()
+        dialog.show()
+
         Thread {
             try {
                 val outFile = File(activity.getExternalFilesDir(null), "update.apk")
-                httpDownload(apkUrl, outFile)
-                main.post { installApk(activity, outFile) }
+                httpDownload(apkUrl, outFile) { pct ->
+                    main.post {
+                        bar.isIndeterminate = false
+                        bar.progress = pct
+                        text.text = "$pct%"
+                    }
+                }
+                main.post {
+                    dialog.dismiss()
+                    installApk(activity, outFile)
+                }
             } catch (e: Exception) {
-                main.post { toast(activity, "ดาวน์โหลดอัปเดตไม่สำเร็จ") }
+                main.post {
+                    dialog.dismiss()
+                    toast(activity, "ดาวน์โหลดอัปเดตไม่สำเร็จ")
+                }
             }
         }.start()
     }
@@ -109,13 +140,34 @@ object UpdateManager {
         conn.inputStream.use { return it.readBytes().toString(Charsets.UTF_8) }
     }
 
-    private fun httpDownload(urlStr: String, out: File) {
+    private fun httpDownload(urlStr: String, out: File, onProgress: (Int) -> Unit) {
         val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
             connectTimeout = 20000
             readTimeout = 60000
             instanceFollowRedirects = true
         }
-        conn.inputStream.use { input -> out.outputStream().use { input.copyTo(it) } }
+        val total = conn.contentLength.toLong() // -1 if the server doesn't report a length
+        conn.inputStream.use { input ->
+            out.outputStream().use { output ->
+                val buf = ByteArray(8192)
+                var downloaded = 0L
+                var lastPct = -1
+                while (true) {
+                    val read = input.read(buf)
+                    if (read == -1) break
+                    output.write(buf, 0, read)
+                    downloaded += read
+                    if (total > 0) {
+                        val pct = (downloaded * 100 / total).toInt()
+                        if (pct != lastPct) {
+                            lastPct = pct
+                            onProgress(pct)
+                        }
+                    }
+                }
+            }
+        }
+        if (total <= 0) onProgress(100)
     }
 
     private fun toast(activity: Activity, msg: String) =

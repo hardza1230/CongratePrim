@@ -5,8 +5,8 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="@color/panel_bg"
-    android:padding="8dp">
+    android:background="@drawable/panel_background"
+    android:padding="10dp">
 
     <TextView
         android:id="@+id/dragHandle"
