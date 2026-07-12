@@ -22,5 +22,8 @@ data class TapStep(
     val condTop: Int = 0,
     val condW: Int = 0,
     val condH: Int = 0,
-    val threshold: Double = 0.90
+    val threshold: Double = 0.90,
+    // Human-like randomness:
+    val randomMs: Long = 0,   // add a random 0..randomMs to the wait each time
+    val posJitter: Int = 0    // tap at a random offset of ±posJitter px
 )

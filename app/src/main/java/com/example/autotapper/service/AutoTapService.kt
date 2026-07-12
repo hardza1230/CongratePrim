@@ -2,6 +2,7 @@ package com.example.autotapper.service
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
+import android.app.AlertDialog
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Path
@@ -16,6 +17,8 @@ import android.view.View
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Button
+import android.widget.SeekBar
+import android.widget.TextView
 import android.widget.Toast
 import com.example.autotapper.R
 import com.example.autotapper.data.ConfigStore
@@ -40,6 +43,7 @@ class AutoTapService : AccessibilityService() {
 
     private var controlPanel: View? = null
     private var captureOverlay: View? = null
+    private var bubble: View? = null
 
     // --- on-screen draggable tap markers (edit mode) ---
     private val markerViews = mutableListOf<View>()
@@ -58,7 +62,6 @@ class AutoTapService : AccessibilityService() {
         private const val MATCH_GRID = 16         // downscale size used when comparing images
         private const val MARKER_SIZE_DP = 48     // diameter of the draggable tap markers
         private const val DRAG_SLOP_DP = 8        // movement before a touch counts as a drag
-        private const val LONG_PRESS_MS = 600L    // hold on a marker to delete it
     }
 
     override fun onServiceConnected() {
@@ -76,6 +79,7 @@ class AutoTapService : AccessibilityService() {
         removeControlPanel()
         removeCaptureOverlay()
         removeRegionOverlay()
+        removeBubble()
         super.onDestroy()
     }
 
@@ -104,11 +108,7 @@ class AutoTapService : AccessibilityService() {
         panel.findViewById<Button>(R.id.btnAddPoint).setOnClickListener { addPointAtCenter() }
         panel.findViewById<Button>(R.id.btnEditPoints).setOnClickListener { toggleEditMode() }
         panel.findViewById<Button>(R.id.btnImgCond).setOnClickListener { captureImageConditionStep() }
-        panel.findViewById<Button>(R.id.btnHide).setOnClickListener {
-            lp.x = 0
-            lp.y = 0
-            windowManager.updateViewLayout(panel, lp)
-        }
+        panel.findViewById<Button>(R.id.btnHide).setOnClickListener { collapseToBubble() }
 
         enableDragging(panel, lp)
 
@@ -148,6 +148,77 @@ class AutoTapService : AccessibilityService() {
     }
 
     // ---------------------------------------------------------------------
+    // Collapse the panel into a small draggable bubble (tap to reopen)
+    // ---------------------------------------------------------------------
+
+    private fun collapseToBubble() {
+        hideMarkers()
+        editMode = false
+        removeControlPanel()
+        showBubble()
+    }
+
+    private fun showBubble() {
+        if (bubble != null) return
+        val view = LayoutInflater.from(this).inflate(R.layout.bubble_view, null)
+        val size = dp(52)
+        val lp = WindowManager.LayoutParams(
+            size, size,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = 24
+            y = 240
+        }
+
+        val slop = dp(DRAG_SLOP_DP)
+        var downX = 0f
+        var downY = 0f
+        var startLpX = 0
+        var startLpY = 0
+        var moved = false
+        view.setOnTouchListener { _, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    downX = event.rawX; downY = event.rawY
+                    startLpX = lp.x; startLpY = lp.y
+                    moved = false
+                    true
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dx = event.rawX - downX
+                    val dy = event.rawY - downY
+                    if (!moved && (abs(dx) > slop || abs(dy) > slop)) moved = true
+                    if (moved) {
+                        lp.x = startLpX + dx.toInt()
+                        lp.y = startLpY + dy.toInt()
+                        runCatching { windowManager.updateViewLayout(view, lp) }
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (!moved) {           // a tap re-opens the panel
+                        removeBubble()
+                        showControlPanel()
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
+
+        runCatching { windowManager.addView(view, lp) }
+        bubble = view
+    }
+
+    private fun removeBubble() {
+        bubble?.let { runCatching { windowManager.removeView(it) } }
+        bubble = null
+    }
+
+    // ---------------------------------------------------------------------
     // Draggable on-screen tap markers (the "popular app" way to set points)
     // ---------------------------------------------------------------------
 
@@ -157,7 +228,7 @@ class AutoTapService : AccessibilityService() {
         editMode = !editMode
         if (editMode) {
             showMarkers()
-            toast("โหมดแก้ไข: ลากวงกลมเพื่อย้าย • ลากค้างเพื่อลบ")
+            toast("โหมดแก้ไข: ลากเพื่อย้าย • แตะวงกลมเพื่อตั้งความเร็ว/ลบ")
         } else {
             hideMarkers()
         }
@@ -217,7 +288,6 @@ class AutoTapService : AccessibilityService() {
         var startLpX = 0
         var startLpY = 0
         var moved = false
-        val longPress = Runnable { deleteStep(index) }
 
         marker.setOnTouchListener { _, event ->
             when (event.action) {
@@ -227,16 +297,12 @@ class AutoTapService : AccessibilityService() {
                     startLpX = lp.x
                     startLpY = lp.y
                     moved = false
-                    handler.postDelayed(longPress, LONG_PRESS_MS)
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
                     val dx = event.rawX - downX
                     val dy = event.rawY - downY
-                    if (!moved && (abs(dx) > slop || abs(dy) > slop)) {
-                        moved = true
-                        handler.removeCallbacks(longPress) // a drag is not a long-press
-                    }
+                    if (!moved && (abs(dx) > slop || abs(dy) > slop)) moved = true
                     if (moved) {
                         lp.x = startLpX + dx.toInt()
                         lp.y = startLpY + dy.toInt()
@@ -245,19 +311,82 @@ class AutoTapService : AccessibilityService() {
                     true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    handler.removeCallbacks(longPress)
                     if (moved) {
                         updateStepPosition(
                             index,
                             (lp.x + size / 2).toFloat(),
                             (lp.y + size / 2).toFloat()
                         )
+                    } else {
+                        showStepSettingsDialog(index) // a tap opens per-point settings
                     }
                     true
                 }
                 else -> false
             }
         }
+    }
+
+    /** Per-point settings via sliders: tap speed, human-like randomness, jitter. */
+    private fun showStepSettingsDialog(index: Int) {
+        val steps = ConfigStore.loadSteps(this)
+        if (index !in steps.indices) return
+        val step = steps[index]
+
+        val themed = android.view.ContextThemeWrapper(
+            this, android.R.style.Theme_DeviceDefault_Light_Dialog_Alert
+        )
+        val view = LayoutInflater.from(themed).inflate(R.layout.dialog_step_settings, null)
+        val seekDelay = view.findViewById<SeekBar>(R.id.seekDelay)
+        val seekRandom = view.findViewById<SeekBar>(R.id.seekRandom)
+        val seekJitter = view.findViewById<SeekBar>(R.id.seekJitter)
+        val labelDelay = view.findViewById<TextView>(R.id.labelDelay)
+        val labelRandom = view.findViewById<TextView>(R.id.labelRandom)
+        val labelJitter = view.findViewById<TextView>(R.id.labelJitter)
+
+        seekDelay.progress = step.postDelayMs.toInt().coerceIn(0, seekDelay.max)
+        seekRandom.progress = step.randomMs.toInt().coerceIn(0, seekRandom.max)
+        seekJitter.progress = step.posJitter.coerceIn(0, seekJitter.max)
+        labelDelay.text = "เวลารอหลังกด: ${seekDelay.progress} ms"
+        labelRandom.text = "สุ่มบวกเพิ่ม (เลียนแบบคน): ${seekRandom.progress} ms"
+        labelJitter.text = "สุ่มตำแหน่งนิ้ว: ${seekJitter.progress} px"
+
+        seekDelay.onProgress { labelDelay.text = "เวลารอหลังกด: $it ms" }
+        seekRandom.onProgress { labelRandom.text = "สุ่มบวกเพิ่ม (เลียนแบบคน): $it ms" }
+        seekJitter.onProgress { labelJitter.text = "สุ่มตำแหน่งนิ้ว: $it px" }
+
+        val dialog = AlertDialog.Builder(themed)
+            .setTitle("⚙️ ตั้งค่าจุดที่ ${index + 1}")
+            .setView(view)
+            .setPositiveButton("บันทึก") { _, _ ->
+                val list = ConfigStore.loadSteps(this)
+                if (index in list.indices) {
+                    list[index] = list[index].copy(
+                        postDelayMs = seekDelay.progress.toLong(),
+                        randomMs = seekRandom.progress.toLong(),
+                        posJitter = seekJitter.progress
+                    )
+                    ConfigStore.saveSteps(this, list)
+                    showMarkers()
+                    toast("บันทึกจุดที่ ${index + 1} แล้ว")
+                }
+            }
+            .setNegativeButton("ยกเลิก", null)
+            .setNeutralButton("🗑 ลบจุดนี้") { _, _ -> deleteStep(index) }
+            .create()
+        // An accessibility service can only show a dialog via an overlay window.
+        dialog.window?.setType(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY)
+        dialog.show()
+    }
+
+    private fun SeekBar.onProgress(update: (Int) -> Unit) {
+        setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar?, progress: Int, fromUser: Boolean) =
+                update(progress)
+
+            override fun onStartTrackingTouch(sb: SeekBar?) {}
+            override fun onStopTrackingTouch(sb: SeekBar?) {}
+        })
     }
 
     private fun updateStepPosition(index: Int, x: Float, y: Float) {
@@ -495,10 +624,16 @@ class AutoTapService : AccessibilityService() {
         val step = steps[currentIndex]
         if (step.condImage == null) {
             currentIndex++
-            performTap(step) { scheduleNext(step.postDelayMs) }
+            performTap(step) { scheduleNext(effectiveDelay(step)) }
         } else {
             checkConditionThenAct(step)
         }
+    }
+
+    /** Wait time for a step, plus a random 0..randomMs to look human. */
+    private fun effectiveDelay(step: TapStep): Long {
+        val extra = if (step.randomMs > 0) (0..step.randomMs).random() else 0L
+        return step.postDelayMs + extra
     }
 
     /** For image-conditional steps: tap only once the image matches; else re-check. */
@@ -507,7 +642,7 @@ class AutoTapService : AccessibilityService() {
         if (ref == null) {
             // Reference missing — treat as a plain tap so the macro doesn't stall.
             currentIndex++
-            performTap(step) { scheduleNext(step.postDelayMs) }
+            performTap(step) { scheduleNext(effectiveDelay(step)) }
             return
         }
         captureScreen(
@@ -520,7 +655,7 @@ class AutoTapService : AccessibilityService() {
                 if (!running) return@captureScreen
                 if (sim >= step.threshold) {
                     currentIndex++
-                    performTap(step) { scheduleNext(step.postDelayMs) }
+                    performTap(step) { scheduleNext(effectiveDelay(step)) }
                 } else {
                     scheduleNext(RECHECK_MS) // keep waiting on the same step
                 }
@@ -540,7 +675,10 @@ class AutoTapService : AccessibilityService() {
     }
 
     private fun performTap(step: TapStep, onDone: () -> Unit) {
-        val path = Path().apply { moveTo(step.x, step.y) }
+        // Apply a random ±posJitter offset so taps don't land on the exact same pixel.
+        val tapX = if (step.posJitter > 0) step.x + (-step.posJitter..step.posJitter).random() else step.x
+        val tapY = if (step.posJitter > 0) step.y + (-step.posJitter..step.posJitter).random() else step.y
+        val path = Path().apply { moveTo(tapX, tapY) }
         val stroke = GestureDescription.StrokeDescription(path, 0L, step.tapDurationMs)
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
 

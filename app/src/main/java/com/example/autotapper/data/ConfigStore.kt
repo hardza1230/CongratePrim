@@ -35,7 +35,9 @@ object ConfigStore {
                     condTop = o.optInt("ct", 0),
                     condW = o.optInt("cw", 0),
                     condH = o.optInt("ch", 0),
-                    threshold = o.optDouble("thr", 0.90)
+                    threshold = o.optDouble("thr", 0.90),
+                    randomMs = o.optLong("rnd", 0),
+                    posJitter = o.optInt("jit", 0)
                 )
             )
         }
@@ -55,6 +57,8 @@ object ConfigStore {
                 .put("cw", s.condW)
                 .put("ch", s.condH)
                 .put("thr", s.threshold)
+                .put("rnd", s.randomMs)
+                .put("jit", s.posJitter)
             if (s.condImage != null) o.put("cimg", s.condImage)
             arr.put(o)
         }

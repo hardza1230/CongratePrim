@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Per-point settings, edited with sliders so no keyboard is needed inside the
+     accessibility overlay. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:id="@+id/labelDelay"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="เวลารอหลังกด: 1000 ms"
+        android:textStyle="bold" />
+
+    <SeekBar
+        android:id="@+id/seekDelay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="5000" />
+
+    <TextView
+        android:id="@+id/labelRandom"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="สุ่มบวกเพิ่ม (เลียนแบบคน): 0 ms"
+        android:textStyle="bold" />
+
+    <SeekBar
+        android:id="@+id/seekRandom"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="2000" />
+
+    <TextView
+        android:id="@+id/labelJitter"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="สุ่มตำแหน่งนิ้ว: 0 px"
+        android:textStyle="bold" />
+
+    <SeekBar
+        android:id="@+id/seekJitter"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="50" />
+</LinearLayout>

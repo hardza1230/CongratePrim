@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Collapsed floating bubble; tap to expand the control panel again. -->
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="52dp"
+    android:layout_height="52dp"
+    android:background="@drawable/marker_circle"
+    android:gravity="center"
+    android:textColor="#FFFFFFFF"
+    android:textSize="22sp"
+    android:text="☰" />

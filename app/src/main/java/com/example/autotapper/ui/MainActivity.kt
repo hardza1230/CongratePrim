@@ -113,7 +113,9 @@ class MainActivity : AppCompatActivity() {
                     condTop = orig?.condTop ?: 0,
                     condW = orig?.condW ?: 0,
                     condH = orig?.condH ?: 0,
-                    threshold = orig?.threshold ?: 0.90
+                    threshold = orig?.threshold ?: 0.90,
+                    randomMs = orig?.randomMs ?: 0,
+                    posJitter = orig?.posJitter ?: 0
                 )
             )
         }
