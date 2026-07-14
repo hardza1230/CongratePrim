@@ -421,12 +421,27 @@ class AutoTapService : AccessibilityService() {
     // Full-screen capture overlay: records one touch point
     // ---------------------------------------------------------------------
 
-    private fun showCapture(onTap: (Float, Float) -> Unit) {
+    private fun showCapture(instruction: String, onTap: (Float, Float) -> Unit) {
         if (captureOverlay != null) return
 
-        val overlay = View(this).apply {
+        val overlay = android.widget.FrameLayout(this).apply {
             setBackgroundColor(getColor(R.color.capture_scrim))
         }
+        val hint = android.widget.TextView(this).apply {
+            text = instruction
+            setTextColor(0xFFFFFFFF.toInt())
+            textSize = 20f
+            setShadowLayer(8f, 0f, 0f, 0xFF000000.toInt())
+            setPadding(dp(16), dp(12), dp(16), dp(12))
+        }
+        overlay.addView(
+            hint,
+            android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER
+            )
+        )
         val lp = WindowManager.LayoutParams(
             WindowManager.LayoutParams.MATCH_PARENT,
             WindowManager.LayoutParams.MATCH_PARENT,
@@ -462,24 +477,24 @@ class AutoTapService : AccessibilityService() {
     private fun captureImageConditionStep() {
         editMode = false
         hideMarkers() // keep markers out of the reference screenshot
-        toast("1) ลากคลุมกรอบรอบ 'ปุ่ม/ภาพ' ที่จะรอ")
+        longToast("1) ลากคลุมกรอบรอบ 'ปุ่ม/ภาพ' ที่จะรอ")
         showRegionSelect { rect ->
-            toast("กำลังจับภาพ…")
+            longToast("กำลังจับภาพหน้าจอ…")
             // Let the selection overlay clear, then grab the screen and crop the box.
             handler.postDelayed({
-                captureScreen(onBitmap = { bmp ->
+                captureScreenRetry(2, onBitmap = { bmp ->
                     val patch = cropRect(bmp, rect.left, rect.top, rect.width(), rect.height())
                     bmp.recycle()
                     if (patch == null) {
-                        toast("เลือกบริเวณไม่ได้ ลองใหม่อีกครั้ง")
-                        return@captureScreen
+                        longToast("เลือกบริเวณไม่ได้ ลองใหม่อีกครั้ง")
+                        return@captureScreenRetry
                     }
                     val fname = "cond_${System.currentTimeMillis()}.png"
                     savePng(patch, File(filesDir, fname))
                     patch.recycle()
 
-                    toast("2) จับภาพสำเร็จ! แตะ 'จุดที่จะกด'")
-                    showCapture { tapX, tapY ->
+                    longToast("2) จับภาพสำเร็จ! ตอนนี้แตะ 'จุดที่จะให้กด'")
+                    showCapture("แตะจุดที่จะให้กด") { tapX, tapY ->
                         ConfigStore.addStep(
                             this,
                             TapStep(
@@ -489,11 +504,32 @@ class AutoTapService : AccessibilityService() {
                                 condW = rect.width(), condH = rect.height()
                             )
                         )
-                        toast("เพิ่มแล้ว: รอภาพในกรอบ → กด (${tapX.toInt()}, ${tapY.toInt()})")
+                        // Reveal the new orange marker straight away as confirmation.
+                        editMode = true
+                        showMarkers()
+                        longToast("✅ เพิ่มจุดเฝ้าภาพแล้ว (วงส้ม 📷)")
                     }
-                }, onError = { toast("❌ ถ่ายภาพหน้าจอไม่ได้ — อุปกรณ์อาจไม่รองรับ") })
+                }, onError = {
+                    longToast("❌ จับภาพหน้าจอไม่ได้ — อุปกรณ์อาจไม่รองรับ")
+                    showOverlayMessage(
+                        "จับภาพหน้าจอไม่ได้",
+                        "อุปกรณ์นี้อาจบล็อกการถ่ายภาพหน้าจอผ่าน Accessibility " +
+                            "(พบบ่อยในเครื่อง OPPO/ColorOS)\n\nบอกผมได้ เดี๋ยวเปลี่ยนไปใช้วิธี MediaProjection ให้ครับ"
+                    )
+                })
             }, CAPTURE_SETTLE_MS)
         }
+    }
+
+    /** takeScreenshot is rate-limited (~1/s); retry a couple of times. */
+    private fun captureScreenRetry(retries: Int, onBitmap: (Bitmap) -> Unit, onError: () -> Unit) {
+        captureScreen(onBitmap = onBitmap, onError = {
+            if (retries > 0) {
+                handler.postDelayed({ captureScreenRetry(retries - 1, onBitmap, onError) }, 1200)
+            } else {
+                onError()
+            }
+        })
     }
 
     private var regionOverlay: View? = null
@@ -759,5 +795,23 @@ class AutoTapService : AccessibilityService() {
 
     private fun toast(msg: String) {
         Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun longToast(msg: String) {
+        Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+    }
+
+    /** Unmissable message via an overlay dialog (used for capture failures). */
+    private fun showOverlayMessage(title: String, message: String) {
+        val themed = android.view.ContextThemeWrapper(
+            this, android.R.style.Theme_DeviceDefault_Light_Dialog_Alert
+        )
+        val dialog = AlertDialog.Builder(themed)
+            .setTitle("⚠️ $title")
+            .setMessage(message)
+            .setPositiveButton("รับทราบ", null)
+            .create()
+        dialog.window?.setType(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY)
+        runCatching { dialog.show() }
     }
 }
