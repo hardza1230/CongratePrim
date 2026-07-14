@@ -4,7 +4,6 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
 import android.app.AlertDialog
 import android.graphics.Bitmap
-import android.graphics.Color
 import android.graphics.Path
 import android.graphics.PixelFormat
 import android.os.Handler
@@ -25,6 +24,7 @@ import com.example.autotapper.model.TapStep
 import java.io.File
 import java.io.FileOutputStream
 import kotlin.math.abs
+import kotlin.math.max
 
 /**
  * The heart of the app.
@@ -62,7 +62,7 @@ class AutoTapService : AccessibilityService() {
     companion object {
         private const val RECHECK_MS = 1100L      // re-check interval (screenshot is rate-limited ~1s)
         private const val CAPTURE_SETTLE_MS = 200L // let the capture scrim disappear before screenshotting
-        private const val MATCH_GRID = 16         // downscale size used when comparing images
+        private const val SEARCH_MAX_DIM = 220    // downscale the screen to this before template search
         private const val MARKER_SIZE_DP = 48     // diameter of the draggable tap markers
         private const val DRAG_SLOP_DP = 8        // movement before a touch counts as a drag
     }
@@ -349,20 +349,25 @@ class AutoTapService : AccessibilityService() {
         val seekDelay = view.findViewById<SeekBar>(R.id.seekDelay)
         val seekRandom = view.findViewById<SeekBar>(R.id.seekRandom)
         val seekJitter = view.findViewById<SeekBar>(R.id.seekJitter)
+        val seekThreshold = view.findViewById<SeekBar>(R.id.seekThreshold)
         val labelDelay = view.findViewById<TextView>(R.id.labelDelay)
         val labelRandom = view.findViewById<TextView>(R.id.labelRandom)
         val labelJitter = view.findViewById<TextView>(R.id.labelJitter)
+        val labelThreshold = view.findViewById<TextView>(R.id.labelThreshold)
 
         seekDelay.progress = step.postDelayMs.toInt().coerceIn(0, seekDelay.max)
         seekRandom.progress = step.randomMs.toInt().coerceIn(0, seekRandom.max)
         seekJitter.progress = step.posJitter.coerceIn(0, seekJitter.max)
+        seekThreshold.progress = (step.threshold * 100).toInt().coerceIn(50, 99)
         labelDelay.text = "เวลารอหลังกด: ${seekDelay.progress} ms"
         labelRandom.text = "สุ่มบวกเพิ่ม (เลียนแบบคน): ${seekRandom.progress} ms"
         labelJitter.text = "สุ่มตำแหน่งนิ้ว: ${seekJitter.progress} px"
+        labelThreshold.text = "ความไวจับภาพ (เฉพาะจุดเฝ้าภาพ 📷): ${seekThreshold.progress}%"
 
         seekDelay.onProgress { labelDelay.text = "เวลารอหลังกด: $it ms" }
         seekRandom.onProgress { labelRandom.text = "สุ่มบวกเพิ่ม (เลียนแบบคน): $it ms" }
         seekJitter.onProgress { labelJitter.text = "สุ่มตำแหน่งนิ้ว: $it px" }
+        seekThreshold.onProgress { labelThreshold.text = "ความไวจับภาพ (เฉพาะจุดเฝ้าภาพ 📷): $it%" }
 
         val dialog = AlertDialog.Builder(themed)
             .setTitle("⚙️ ตั้งค่าจุดที่ ${index + 1}")
@@ -373,7 +378,8 @@ class AutoTapService : AccessibilityService() {
                     list[index] = list[index].copy(
                         postDelayMs = seekDelay.progress.toLong(),
                         randomMs = seekRandom.progress.toLong(),
-                        posJitter = seekJitter.progress
+                        posJitter = seekJitter.progress,
+                        threshold = seekThreshold.progress / 100.0
                     )
                     ConfigStore.saveSteps(this, list)
                     showMarkers()
@@ -510,13 +516,14 @@ class AutoTapService : AccessibilityService() {
                             x = rect.exactCenterX(), y = rect.exactCenterY(), postDelayMs = 1000L,
                             condImage = fname,
                             condLeft = rect.left, condTop = rect.top,
-                            condW = rect.width(), condH = rect.height()
+                            condW = rect.width(), condH = rect.height(),
+                            threshold = 0.85 // forgiving default for whole-screen search
                         )
                     )
                     // Reveal the new orange marker straight away as confirmation.
                     editMode = true
                     showMarkers()
-                    longToast("✅ เพิ่มแล้ว: พอเจอภาพในกรอบ จะกดตรงภาพนั้นเลย")
+                    longToast("✅ เพิ่มแล้ว: จะค้นหาภาพนี้ทั้งจอ เจอที่ไหนกดที่นั่น")
                 }, onError = {
                     longToast("❌ ยังจับภาพไม่ได้")
                     showOverlayMessage(
@@ -600,27 +607,6 @@ class AutoTapService : AccessibilityService() {
         runCatching {
             FileOutputStream(file).use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
         }
-    }
-
-    /** Similarity in 0..1 (1 == identical), compared on a small downscaled grid. */
-    private fun similarity(a: Bitmap, b: Bitmap): Double {
-        val n = MATCH_GRID
-        val sa = Bitmap.createScaledBitmap(a, n, n, true)
-        val sb = Bitmap.createScaledBitmap(b, n, n, true)
-        var diff = 0L
-        for (y in 0 until n) {
-            for (x in 0 until n) {
-                val pa = sa.getPixel(x, y)
-                val pb = sb.getPixel(x, y)
-                diff += abs(Color.red(pa) - Color.red(pb)).toLong()
-                diff += abs(Color.green(pa) - Color.green(pb)).toLong()
-                diff += abs(Color.blue(pa) - Color.blue(pb)).toLong()
-            }
-        }
-        sa.recycle()
-        sb.recycle()
-        val maxDiff = n.toLong() * n * 3 * 255
-        return 1.0 - diff.toDouble() / maxDiff
     }
 
     // ---------------------------------------------------------------------
@@ -719,17 +705,13 @@ class AutoTapService : AccessibilityService() {
                 val now = android.os.SystemClock.uptimeMillis()
                 watchSteps.forEachIndexed { i, w ->
                     val ref = w.condImage?.let { refCache[it] } ?: return@forEachIndexed
-                    val patch = cropRect(bmp, w.condLeft, w.condTop, w.condW, w.condH)
-                        ?: return@forEachIndexed
-                    val sim = similarity(patch, ref)
-                    patch.recycle()
-                    if (sim >= w.threshold) {
-                        // Don't re-tap the same watcher faster than its own wait time.
-                        val last = lastWatchTap[i] ?: 0L
-                        if (now - last >= maxOf(RECHECK_MS, w.postDelayMs)) {
-                            lastWatchTap[i] = now
-                            performTap(w) {}
-                        }
+                    // Search the WHOLE screen for the image; tap wherever it is found.
+                    val hit = findTemplate(bmp, ref, w.threshold) ?: return@forEachIndexed
+                    // Don't re-tap the same watcher faster than its own wait time.
+                    val last = lastWatchTap[i] ?: 0L
+                    if (now - last >= maxOf(RECHECK_MS, w.postDelayMs)) {
+                        lastWatchTap[i] = now
+                        performTapAt(hit[0], hit[1], w) {}
                     }
                 }
                 bmp.recycle()
@@ -746,10 +728,79 @@ class AutoTapService : AccessibilityService() {
         return runCatching { android.graphics.BitmapFactory.decodeFile(f.absolutePath) }.getOrNull()
     }
 
-    private fun performTap(step: TapStep, onDone: () -> Unit) {
+    /**
+     * Searches the whole [screen] for [template] and returns the full-res centre
+     * (x, y) of the best match if its similarity >= [threshold], else null.
+     * Both are downscaled first so the sliding search stays fast.
+     */
+    private fun findTemplate(screen: Bitmap, template: Bitmap, threshold: Double): FloatArray? {
+        val maxDim = max(screen.width, screen.height)
+        val scale = if (maxDim > SEARCH_MAX_DIM) SEARCH_MAX_DIM.toDouble() / maxDim else 1.0
+        val sw = (screen.width * scale).toInt().coerceAtLeast(1)
+        val sh = (screen.height * scale).toInt().coerceAtLeast(1)
+        val tw = (template.width * scale).toInt().coerceAtLeast(2)
+        val th = (template.height * scale).toInt().coerceAtLeast(2)
+        if (tw >= sw || th >= sh) return null
+
+        val ss = Bitmap.createScaledBitmap(screen, sw, sh, true)
+        val st = Bitmap.createScaledBitmap(template, tw, th, true)
+        val sp = IntArray(sw * sh).also { ss.getPixels(it, 0, sw, 0, 0, sw, sh) }
+        val tp = IntArray(tw * th).also { st.getPixels(it, 0, tw, 0, 0, tw, th) }
+        ss.recycle(); st.recycle()
+
+        val tStep = if (tw * th > 400) 2 else 1
+        var sampleCount = 0
+        run {
+            var ty = 0
+            while (ty < th) { var tx = 0; while (tx < tw) { sampleCount++; tx += tStep }; ty += tStep }
+        }
+        if (sampleCount == 0) return null
+
+        var bestDiff = Long.MAX_VALUE
+        var bestX = -1
+        var bestY = -1
+        val xMax = sw - tw
+        val yMax = sh - th
+        var y = 0
+        while (y <= yMax) {
+            var x = 0
+            while (x <= xMax) {
+                var diff = 0L
+                var ty = 0
+                while (ty < th) {
+                    val srow = (y + ty) * sw + x
+                    val trow = ty * tw
+                    var tx = 0
+                    while (tx < tw) {
+                        val s = sp[srow + tx]
+                        val t = tp[trow + tx]
+                        diff += abs(((s shr 16) and 0xFF) - ((t shr 16) and 0xFF))
+                        diff += abs(((s shr 8) and 0xFF) - ((t shr 8) and 0xFF))
+                        diff += abs((s and 0xFF) - (t and 0xFF))
+                        tx += tStep
+                    }
+                    ty += tStep
+                }
+                if (diff < bestDiff) { bestDiff = diff; bestX = x; bestY = y }
+                x++
+            }
+            y++
+        }
+        if (bestX < 0) return null
+        val sim = 1.0 - bestDiff.toDouble() / (sampleCount.toLong() * 3 * 255)
+        if (sim < threshold) return null
+        val cx = ((bestX + tw / 2.0) / scale).toFloat()
+        val cy = ((bestY + th / 2.0) / scale).toFloat()
+        return floatArrayOf(cx, cy)
+    }
+
+    private fun performTap(step: TapStep, onDone: () -> Unit) =
+        performTapAt(step.x, step.y, step, onDone)
+
+    private fun performTapAt(x: Float, y: Float, step: TapStep, onDone: () -> Unit) {
         // Apply a random ±posJitter offset so taps don't land on the exact same pixel.
-        val tapX = if (step.posJitter > 0) step.x + (-step.posJitter..step.posJitter).random() else step.x
-        val tapY = if (step.posJitter > 0) step.y + (-step.posJitter..step.posJitter).random() else step.y
+        val tapX = if (step.posJitter > 0) x + (-step.posJitter..step.posJitter).random() else x
+        val tapY = if (step.posJitter > 0) y + (-step.posJitter..step.posJitter).random() else y
         val path = Path().apply { moveTo(tapX, tapY) }
         val stroke = GestureDescription.StrokeDescription(path, 0L, step.tapDurationMs)
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
