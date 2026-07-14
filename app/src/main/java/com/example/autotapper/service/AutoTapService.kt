@@ -464,6 +464,7 @@ class AutoTapService : AccessibilityService() {
         hideMarkers() // keep markers out of the reference screenshot
         toast("1) ลากคลุมกรอบรอบ 'ปุ่ม/ภาพ' ที่จะรอ")
         showRegionSelect { rect ->
+            toast("กำลังจับภาพ…")
             // Let the selection overlay clear, then grab the screen and crop the box.
             handler.postDelayed({
                 captureScreen(onBitmap = { bmp ->
@@ -477,7 +478,7 @@ class AutoTapService : AccessibilityService() {
                     savePng(patch, File(filesDir, fname))
                     patch.recycle()
 
-                    toast("2) แตะ 'จุดที่จะกด'")
+                    toast("2) จับภาพสำเร็จ! แตะ 'จุดที่จะกด'")
                     showCapture { tapX, tapY ->
                         ConfigStore.addStep(
                             this,
@@ -490,7 +491,7 @@ class AutoTapService : AccessibilityService() {
                         )
                         toast("เพิ่มแล้ว: รอภาพในกรอบ → กด (${tapX.toInt()}, ${tapY.toInt()})")
                     }
-                }, onError = { toast("ถ่ายภาพหน้าจอไม่ได้") })
+                }, onError = { toast("❌ ถ่ายภาพหน้าจอไม่ได้ — อุปกรณ์อาจไม่รองรับ") })
             }, CAPTURE_SETTLE_MS)
         }
     }

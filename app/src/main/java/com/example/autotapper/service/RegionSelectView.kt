@@ -12,15 +12,17 @@ import kotlin.math.min
 
 /**
  * A full-screen overlay you drag across to select a rectangle (e.g. around a
- * button). It draws the selection while you drag, and reports the chosen Rect
- * (in screen pixels) on finger-up. Used to tell the app which region of the
- * screen to watch for an image — never the whole screen.
+ * button). It dims the screen, draws the selection while you drag, and reports
+ * the chosen Rect (in screen pixels) on finger-up. Used to tell the app which
+ * region of the screen to watch for an image — never the whole screen.
  */
 class RegionSelectView(
     context: Context,
     private val onSelected: (Rect) -> Unit
 ) : View(context) {
 
+    private val scrim = Paint().apply { color = 0x55000000 }
+    private val clear = Paint().apply { color = Color.TRANSPARENT }
     private val fill = Paint().apply {
         color = 0x3300B0FF
         style = Paint.Style.FILL
@@ -28,19 +30,27 @@ class RegionSelectView(
     private val stroke = Paint().apply {
         color = Color.parseColor("#FF00B0FF")
         style = Paint.Style.STROKE
-        strokeWidth = 5f
+        strokeWidth = 6f
     }
 
     private var startX = 0f
     private var startY = 0f
     private var endX = 0f
     private var endY = 0f
+    private var dragging = false
+
+    init {
+        // A plain View skips onDraw unless we opt in / give it a background.
+        setWillNotDraw(false)
+        setBackgroundColor(0x22000000)
+    }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 startX = event.x; startY = event.y
                 endX = event.x; endY = event.y
+                dragging = true
                 invalidate()
             }
             MotionEvent.ACTION_MOVE -> {
@@ -48,6 +58,7 @@ class RegionSelectView(
                 invalidate()
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                dragging = false
                 val l = min(startX, endX).toInt()
                 val t = min(startY, endY).toInt()
                 val r = max(startX, endX).toInt()
