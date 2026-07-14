@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Ripple circle shown briefly at each tap location. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#5500E5FF" />
+    <stroke android:width="3dp" android:color="#FF00E5FF" />
+</shape>

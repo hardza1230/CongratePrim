@@ -718,6 +718,7 @@ class AutoTapService : AccessibilityService() {
         val stroke = GestureDescription.StrokeDescription(path, 0L, step.tapDurationMs)
         val gesture = GestureDescription.Builder().addStroke(stroke).build()
 
+        showTapEffect(tapX, tapY)
         val dispatched = dispatchGesture(
             gesture,
             object : GestureResultCallback() {
@@ -727,6 +728,33 @@ class AutoTapService : AccessibilityService() {
             handler
         )
         if (!dispatched) onDone()
+    }
+
+    /** Brief ripple circle at a tap location so you can see where it taps. */
+    private fun showTapEffect(cx: Float, cy: Float) {
+        val size = dp(56)
+        val view = View(this).apply { setBackgroundResource(R.drawable.tap_effect) }
+        val lp = WindowManager.LayoutParams(
+            size, size,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE, // must never block the tap
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = (cx - size / 2).toInt()
+            y = (cy - size / 2).toInt()
+        }
+        val added = runCatching { windowManager.addView(view, lp) }.isSuccess
+        if (!added) return
+        view.scaleX = 0.4f
+        view.scaleY = 0.4f
+        view.alpha = 0.9f
+        view.animate()
+            .scaleX(1.4f).scaleY(1.4f).alpha(0f)
+            .setDuration(350)
+            .withEndAction { runCatching { windowManager.removeView(view) } }
+            .start()
     }
 
     private fun toast(msg: String) {
