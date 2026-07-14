@@ -49,12 +49,16 @@ class AutoTapService : AccessibilityService() {
     private val markerViews = mutableListOf<View>()
     private var editMode = false
 
-    // --- macro run state ---
+    // --- macro run state (two parallel loops) ---
     private var running = false
-    private var steps: List<TapStep> = emptyList()
-    private var loopCount = 0          // 0 == loop forever
-    private var currentIndex = 0
-    private var currentLoop = 0
+    private var tapSteps: List<TapStep> = emptyList()     // plain taps: looped continuously
+    private var watchSteps: List<TapStep> = emptyList()   // image steps: watched in parallel
+    private val refCache = mutableMapOf<String, Bitmap>() // preloaded reference images
+    private val lastWatchTap = mutableMapOf<Int, Long>()  // per-watcher cooldown
+    private var loopCount = 0          // passes over tapSteps; 0 == forever
+    private var tapIndex = 0
+    private var tapLoop = 0
+    private var tapActive = false
 
     companion object {
         private const val RECHECK_MS = 1100L      // re-check interval (screenshot is rate-limited ~1s)
@@ -242,7 +246,13 @@ class AutoTapService : AccessibilityService() {
         steps.forEachIndexed { index, step ->
             val marker = LayoutInflater.from(this)
                 .inflate(R.layout.marker_view, null) as android.widget.TextView
-            marker.text = (index + 1).toString()
+            if (step.condImage != null) {
+                // Image-watch step: distinct colour + camera glyph.
+                marker.setBackgroundResource(R.drawable.marker_circle_img)
+                marker.text = "📷"
+            } else {
+                marker.text = (index + 1).toString()
+            }
             val lp = WindowManager.LayoutParams(
                 size, size,
                 WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
@@ -584,50 +594,45 @@ class AutoTapService : AccessibilityService() {
         if (running) return
         editMode = false
         hideMarkers() // markers must be gone so they aren't tapped or screenshotted
-        steps = ConfigStore.loadSteps(this)
+
+        val all = ConfigStore.loadSteps(this)
+        tapSteps = all.filter { it.condImage == null }
+        watchSteps = all.filter { it.condImage != null }
         loopCount = ConfigStore.loadLoopCount(this)
-        if (steps.isEmpty()) {
-            toast("No steps configured")
+        if (tapSteps.isEmpty() && watchSteps.isEmpty()) {
+            toast("ยังไม่มีจุด")
             return
         }
-        currentIndex = 0
-        currentLoop = 0
+
+        // Preload every watcher's reference image once.
+        refCache.values.forEach { runCatching { it.recycle() } }
+        refCache.clear()
+        lastWatchTap.clear()
+        watchSteps.forEach { w ->
+            val name = w.condImage ?: return@forEach
+            if (!refCache.containsKey(name)) loadRef(name)?.let { refCache[name] = it }
+        }
+
+        tapIndex = 0
+        tapLoop = 0
         running = true
-        toast("AutoTapper started")
-        scheduleNext(0)
+        toast("เริ่มทำงาน")
+
+        // Loop 1: tap points, continuously.
+        tapActive = tapSteps.isNotEmpty()
+        if (tapActive) scheduleTap(0)
+        // Loop 2 (parallel): watch for images and tap them when they appear.
+        if (watchSteps.isNotEmpty()) scheduleWatch(300)
     }
 
     private fun stopMacro() {
         if (!running) return
         running = false
+        tapActive = false
         handler.removeCallbacksAndMessages(null)
-        toast("AutoTapper stopped")
-    }
-
-    private fun scheduleNext(delayMs: Long) {
-        if (!running) return
-        handler.postDelayed({ runStep() }, delayMs)
-    }
-
-    private fun runStep() {
-        if (!running) return
-
-        if (currentIndex >= steps.size) {
-            currentIndex = 0
-            currentLoop++
-            if (loopCount != 0 && currentLoop >= loopCount) {
-                stopMacro()
-                return
-            }
-        }
-
-        val step = steps[currentIndex]
-        if (step.condImage == null) {
-            currentIndex++
-            performTap(step) { scheduleNext(effectiveDelay(step)) }
-        } else {
-            checkConditionThenAct(step)
-        }
+        refCache.values.forEach { runCatching { it.recycle() } }
+        refCache.clear()
+        toast("หยุดแล้ว")
     }
 
     /** Wait time for a step, plus a random 0..randomMs to look human. */
@@ -636,34 +641,64 @@ class AutoTapService : AccessibilityService() {
         return step.postDelayMs + extra
     }
 
-    /** For image-conditional steps: tap only once the image matches; else re-check. */
-    private fun checkConditionThenAct(step: TapStep) {
-        val ref = loadRef(step.condImage)
-        if (ref == null) {
-            // Reference missing — treat as a plain tap so the macro doesn't stall.
-            currentIndex++
-            performTap(step) { scheduleNext(effectiveDelay(step)) }
-            return
+    // --- Loop 1: continuous tapping of the plain points ---
+
+    private fun scheduleTap(delayMs: Long) {
+        if (!running || !tapActive) return
+        handler.postDelayed({ runTapStep() }, delayMs)
+    }
+
+    private fun runTapStep() {
+        if (!running || !tapActive) return
+        if (tapSteps.isEmpty()) { tapActive = false; return }
+
+        if (tapIndex >= tapSteps.size) {
+            tapIndex = 0
+            tapLoop++
+            if (loopCount != 0 && tapLoop >= loopCount) {
+                tapActive = false
+                if (watchSteps.isEmpty()) stopMacro() // nothing left running
+                return
+            }
         }
+
+        val step = tapSteps[tapIndex]
+        tapIndex++
+        performTap(step) { scheduleTap(effectiveDelay(step)) }
+    }
+
+    // --- Loop 2: watch regions for images, tap their target when seen ---
+
+    private fun scheduleWatch(delayMs: Long) {
+        if (!running || watchSteps.isEmpty()) return
+        handler.postDelayed({ runWatch() }, delayMs)
+    }
+
+    private fun runWatch() {
+        if (!running || watchSteps.isEmpty()) return
         captureScreen(
             onBitmap = { bmp ->
-                val patch = cropRect(bmp, step.condLeft, step.condTop, step.condW, step.condH)
-                bmp.recycle()
-                val sim = if (patch != null) similarity(patch, ref) else 0.0
-                patch?.recycle()
-                ref.recycle()
-                if (!running) return@captureScreen
-                if (sim >= step.threshold) {
-                    currentIndex++
-                    performTap(step) { scheduleNext(effectiveDelay(step)) }
-                } else {
-                    scheduleNext(RECHECK_MS) // keep waiting on the same step
+                if (!running) { bmp.recycle(); return@captureScreen }
+                val now = android.os.SystemClock.uptimeMillis()
+                watchSteps.forEachIndexed { i, w ->
+                    val ref = w.condImage?.let { refCache[it] } ?: return@forEachIndexed
+                    val patch = cropRect(bmp, w.condLeft, w.condTop, w.condW, w.condH)
+                        ?: return@forEachIndexed
+                    val sim = similarity(patch, ref)
+                    patch.recycle()
+                    if (sim >= w.threshold) {
+                        // Don't re-tap the same watcher faster than its own wait time.
+                        val last = lastWatchTap[i] ?: 0L
+                        if (now - last >= maxOf(RECHECK_MS, w.postDelayMs)) {
+                            lastWatchTap[i] = now
+                            performTap(w) {}
+                        }
+                    }
                 }
+                bmp.recycle()
+                scheduleWatch(RECHECK_MS)
             },
-            onError = {
-                ref.recycle()
-                scheduleNext(RECHECK_MS)
-            }
+            onError = { scheduleWatch(RECHECK_MS) }
         )
     }
 
