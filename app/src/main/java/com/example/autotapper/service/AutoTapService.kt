@@ -9,7 +9,6 @@ import android.graphics.Path
 import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
-import android.view.Display
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -475,6 +474,17 @@ class AutoTapService : AccessibilityService() {
      *   2) tap where the action should happen          -> store as the tap target
      */
     private fun captureImageConditionStep() {
+        if (!ScreenCaptureService.isReady) {
+            showOverlayMessage(
+                "ต้องเปิดการจับภาพหน้าจอก่อน",
+                "โหมด 'รอภาพ' ใช้การจับภาพหน้าจอ (MediaProjection)\n\n" +
+                    "1) เปิดแอป AutoTapper\n" +
+                    "2) กดปุ่ม '📷 เปิดการจับภาพหน้าจอ'\n" +
+                    "3) กด 'เริ่มเลย/อนุญาต' ในหน้าต่างของระบบ\n\n" +
+                    "แล้วกลับมากด 📷 ภาพ อีกครั้ง"
+            )
+            return
+        }
         editMode = false
         hideMarkers() // keep markers out of the reference screenshot
         longToast("1) ลากคลุมกรอบรอบ 'ปุ่ม/ภาพ' ที่จะรอ")
@@ -510,11 +520,14 @@ class AutoTapService : AccessibilityService() {
                         longToast("✅ เพิ่มจุดเฝ้าภาพแล้ว (วงส้ม 📷)")
                     }
                 }, onError = {
-                    longToast("❌ จับภาพหน้าจอไม่ได้ — อุปกรณ์อาจไม่รองรับ")
+                    longToast("❌ ยังจับภาพไม่ได้")
                     showOverlayMessage(
-                        "จับภาพหน้าจอไม่ได้",
-                        "อุปกรณ์นี้อาจบล็อกการถ่ายภาพหน้าจอผ่าน Accessibility " +
-                            "(พบบ่อยในเครื่อง OPPO/ColorOS)\n\nบอกผมได้ เดี๋ยวเปลี่ยนไปใช้วิธี MediaProjection ให้ครับ"
+                        "ต้องเปิดการจับภาพหน้าจอก่อน",
+                        "โหมด 'รอภาพ' ใช้การจับภาพหน้าจอ (MediaProjection)\n\n" +
+                            "1) เปิดแอป AutoTapper\n" +
+                            "2) กดปุ่ม '📷 เปิดการจับภาพหน้าจอ'\n" +
+                            "3) กด 'เริ่มเลย/อนุญาต' ในหน้าต่างของระบบ\n\n" +
+                            "แล้วกลับมากด 📷 ภาพ อีกครั้ง"
                     )
                 })
             }, CAPTURE_SETTLE_MS)
@@ -563,26 +576,15 @@ class AutoTapService : AccessibilityService() {
     // ---------------------------------------------------------------------
 
     private fun captureScreen(onBitmap: (Bitmap) -> Unit, onError: () -> Unit) {
-        try {
-            takeScreenshot(
-                Display.DEFAULT_DISPLAY,
-                mainExecutor,
-                object : TakeScreenshotCallback {
-                    override fun onSuccess(screenshot: ScreenshotResult) {
-                        val buffer = screenshot.hardwareBuffer
-                        val hw = Bitmap.wrapHardwareBuffer(buffer, screenshot.colorSpace)
-                        val bmp = hw?.copy(Bitmap.Config.ARGB_8888, false)
-                        hw?.recycle()
-                        buffer.close()
-                        if (bmp != null) onBitmap(bmp) else onError()
-                    }
-
-                    override fun onFailure(errorCode: Int) = onError()
-                }
-            )
-        } catch (e: Exception) {
+        // Uses MediaProjection (ScreenCaptureService); works on OEM ROMs where
+        // AccessibilityService.takeScreenshot is blocked (e.g. ColorOS/OPPO).
+        val svc = ScreenCaptureService.instance
+        if (svc == null) {
             onError()
+            return
         }
+        val bmp = runCatching { svc.captureBitmap() }.getOrNull()
+        if (bmp != null) onBitmap(bmp) else onError()
     }
 
     /** Crop an arbitrary rectangle, clamped to the bitmap bounds. */

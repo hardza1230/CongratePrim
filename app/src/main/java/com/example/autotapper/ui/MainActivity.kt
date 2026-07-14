@@ -1,6 +1,7 @@
 package com.example.autotapper.ui
 
 import android.content.Intent
+import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.provider.Settings
 import android.text.TextUtils
@@ -10,11 +11,15 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import com.example.autotapper.R
 import com.example.autotapper.data.ConfigStore
 import com.example.autotapper.model.TapStep
 import com.example.autotapper.service.AutoTapService
+import com.example.autotapper.service.ScreenCaptureService
 import com.example.autotapper.update.UpdateManager
 
 /**
@@ -27,6 +32,21 @@ class MainActivity : AppCompatActivity() {
     private lateinit var statusText: TextView
     private lateinit var loopInput: EditText
     private lateinit var stepContainer: LinearLayout
+
+    // Screen-capture permission flow (MediaProjection) for the image-watch mode.
+    private val projectionLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            if (result.resultCode == RESULT_OK && result.data != null) {
+                val svc = Intent(this, ScreenCaptureService::class.java).apply {
+                    putExtra(ScreenCaptureService.EXTRA_CODE, result.resultCode)
+                    putExtra(ScreenCaptureService.EXTRA_DATA, result.data)
+                }
+                ContextCompat.startForegroundService(this, svc)
+                Toast.makeText(this, "เปิดการจับภาพหน้าจอแล้ว ✅", Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(this, "ไม่ได้อนุญาตจับภาพหน้าจอ", Toast.LENGTH_SHORT).show()
+            }
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,6 +69,11 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btnCheckUpdate).setOnClickListener {
             UpdateManager.checkForUpdate(this, silent = false)
+        }
+
+        findViewById<Button>(R.id.btnEnableCapture).setOnClickListener {
+            val mpm = getSystemService(MediaProjectionManager::class.java)
+            projectionLauncher.launch(mpm.createScreenCaptureIntent())
         }
 
         // Silently check the server for a newer APK each time the app opens.

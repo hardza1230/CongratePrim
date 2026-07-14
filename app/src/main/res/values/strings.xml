@@ -5,6 +5,7 @@
 
     <string name="enable_service">Enable Accessibility Service</string>
     <string name="check_update">เช็คอัปเดต</string>
+    <string name="enable_capture">📷 เปิดการจับภาพหน้าจอ (สำหรับโหมดรอภาพ)</string>
     <string name="service_enabled">Accessibility service: ENABLED</string>
     <string name="service_disabled">Accessibility service: DISABLED — tap below to enable</string>
 

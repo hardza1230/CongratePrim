@@ -70,6 +70,14 @@
                         android:text="@string/enable_service" />
 
                     <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnEnableCapture"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/enable_capture" />
+
+                    <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnCheckUpdate"
                         style="@style/Widget.Material3.Button.TonalButton"
                         android:layout_width="match_parent"
