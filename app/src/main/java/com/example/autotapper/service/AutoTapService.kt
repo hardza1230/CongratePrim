@@ -487,7 +487,7 @@ class AutoTapService : AccessibilityService() {
         }
         editMode = false
         hideMarkers() // keep markers out of the reference screenshot
-        longToast("1) ลากคลุมกรอบรอบ 'ปุ่ม/ภาพ' ที่จะรอ")
+        longToast("ลากคลุมกรอบรอบ 'ปุ่ม' ที่จะให้กดเมื่อมันโผล่")
         showRegionSelect { rect ->
             longToast("กำลังจับภาพหน้าจอ…")
             // Let the selection overlay clear, then grab the screen and crop the box.
@@ -503,22 +503,20 @@ class AutoTapService : AccessibilityService() {
                     savePng(patch, File(filesDir, fname))
                     patch.recycle()
 
-                    longToast("2) จับภาพสำเร็จ! ตอนนี้แตะ 'จุดที่จะให้กด'")
-                    showCapture("แตะจุดที่จะให้กด") { tapX, tapY ->
-                        ConfigStore.addStep(
-                            this,
-                            TapStep(
-                                x = tapX, y = tapY, postDelayMs = 1000L,
-                                condImage = fname,
-                                condLeft = rect.left, condTop = rect.top,
-                                condW = rect.width(), condH = rect.height()
-                            )
+                    // Tap the centre of the watched box — i.e. tap the image itself.
+                    ConfigStore.addStep(
+                        this,
+                        TapStep(
+                            x = rect.exactCenterX(), y = rect.exactCenterY(), postDelayMs = 1000L,
+                            condImage = fname,
+                            condLeft = rect.left, condTop = rect.top,
+                            condW = rect.width(), condH = rect.height()
                         )
-                        // Reveal the new orange marker straight away as confirmation.
-                        editMode = true
-                        showMarkers()
-                        longToast("✅ เพิ่มจุดเฝ้าภาพแล้ว (วงส้ม 📷)")
-                    }
+                    )
+                    // Reveal the new orange marker straight away as confirmation.
+                    editMode = true
+                    showMarkers()
+                    longToast("✅ เพิ่มแล้ว: พอเจอภาพในกรอบ จะกดตรงภาพนั้นเลย")
                 }, onError = {
                     longToast("❌ ยังจับภาพไม่ได้")
                     showOverlayMessage(
