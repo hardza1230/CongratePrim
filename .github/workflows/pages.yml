@@ -1,0 +1,46 @@
+name: Deploy to GitHub Pages
+
+# ทุกครั้งที่แก้ไฟล์แอปแล้ว push ขึ้น main เว็บจะถูก deploy ใหม่อัตโนมัติ
+# แอปบนมือถือ (ทั้ง PWA และ APK) จะได้ของใหม่เองในการเปิดครั้งถัดไป
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Stage site files
+        run: |
+          mkdir -p _site
+          cp index.html manifest.webmanifest sw.js icon.svg _site/
+          touch _site/.nojekyll
+          ls -la _site
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
