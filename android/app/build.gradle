@@ -4,6 +4,8 @@ plugins {
 
 // URL ของแอปบน GitHub Pages — workflow ส่งค่าจริงมาให้ตอน build
 def appUrl = (project.findProperty('appUrl') ?: 'https://hardza1230.github.io/CongratePrim/').toString()
+def appVersionCode = (project.findProperty('versionCode') ?: '1').toString().toInteger()
+def appVersionName = (project.findProperty('versionName') ?: '1.0').toString()
 
 android {
     namespace 'com.congrateprim.gobsong'
@@ -13,8 +15,8 @@ android {
         applicationId "com.congrateprim.gobsong"
         minSdk 26
         targetSdk 35
-        versionCode (project.findProperty('versionCode') ?: '1').toString().toInteger()
-        versionName (project.findProperty('versionName') ?: '1.0').toString()
+        versionCode = appVersionCode
+        versionName = appVersionName
         buildConfigField "String", "APP_URL", "\"${appUrl}\""
     }
 

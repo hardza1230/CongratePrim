@@ -34,21 +34,80 @@
 
 ## วิธีใช้บนมือถือ
 
-ต้องเปิดผ่าน http/https (ไม่ใช่ `file://`) เพื่อให้ service worker ทำงาน
+### วิธีที่ 1 — GitHub Pages (แนะนำ)
 
-1. รันเซิร์ฟเวอร์ในโฟลเดอร์นี้ เช่น `python3 -m http.server 8000` แล้วเปิด `http://<ไอพีเครื่อง>:8000` จากมือถือ
-   (หรือจะอัปโหลดโฟลเดอร์นี้ขึ้นโฮสต์ไฟล์นิ่งอย่าง GitHub Pages / Netlify / Vercel ก็ได้)
-2. **iPhone (Safari)**: ปุ่มแชร์ → เพิ่มไปยังหน้าจอโฮม
-   **Android (Chrome)**: เมนู ⋮ → ติดตั้งแอป / เพิ่มไปยังหน้าจอโฮม
-3. เปิดจากไอคอนบนหน้าจอโฮม จะได้แบบเต็มจอไม่มีแถบเบราว์เซอร์ และใช้งานได้แม้ไม่มีเน็ต
+URL ของแอป: **https://hardza1230.github.io/CongratePrim/**
+
+ครั้งแรกต้องเปิดสวิตช์ Pages ก่อนหนึ่งครั้ง (ทำครั้งเดียวจบ):
+
+1. ไปที่ **Settings → Pages** ของ repo
+2. หัวข้อ *Build and deployment* → **Source** เลือก **GitHub Actions**
+3. กลับไปที่แท็บ **Actions** เปิด workflow *Deploy to GitHub Pages* แล้วกด **Run workflow**
+   (หรือ push อะไรก็ได้ขึ้น `main` มันจะ deploy เอง)
+
+จากนั้นบนมือถือ:
+
+- **iPhone (Safari)** เปิด URL → ปุ่มแชร์ → เพิ่มไปยังหน้าจอโฮม
+- **Android (Chrome)** เปิด URL → เมนู ⋮ → ติดตั้งแอป
+
+เปิดจากไอคอนบนหน้าจอโฮมจะได้เต็มจอไม่มีแถบเบราว์เซอร์ และใช้ได้แม้ไม่มีเน็ต
+
+### วิธีที่ 2 — APK สำหรับ Android
+
+ไปที่หน้า **Releases** ของ repo โหลดไฟล์ `.apk` ตัวล่าสุดจากมือถือแล้วกดติดตั้ง
+(ต้องอนุญาต "ติดตั้งแอปจากแหล่งที่ไม่รู้จัก" ให้เบราว์เซอร์ที่ใช้โหลด)
+
+APK เป็น **ตัวหุ้มบาง ๆ ที่โหลดหน้าเว็บจาก Pages** ไม่ได้ฝังไฟล์เว็บไว้ข้างใน แปลว่า
+
+- แก้โค้ดแล้ว push ขึ้น `main` → Pages อัปเดต → **แอปในเครื่องได้ของใหม่เองตอนเปิดครั้งถัดไป ไม่ต้องลง APK ใหม่**
+- เปิดครั้งแรกต้องมีเน็ตหนึ่งครั้ง หลังจากนั้น service worker ทำให้เปิดออฟไลน์ได้
+- ข้อมูลใน APK แยกคนละที่กับข้อมูลในเบราว์เซอร์ (คนละ localStorage)
+
+### วิธีที่ 3 — เสิร์ฟจากคอมในบ้าน
+
+`python3 -m http.server 8000` แล้วเปิด `http://<ไอพีคอม>:8000` จากมือถือในไวไฟเดียวกัน
+(เปิดจาก `file://` ตรง ๆ ไม่ได้ เพราะ service worker จะไม่ทำงาน)
+
+## GitHub Actions ที่มีอยู่
+
+| workflow | รันเมื่อไหร่ | ทำอะไร |
+|---|---|---|
+| `pages.yml` | ทุก push ขึ้น `main` | deploy เว็บขึ้น GitHub Pages |
+| `android.yml` | แก้โฟลเดอร์ `android/` หรือกดรันเอง | build APK แล้วออก GitHub Release ใหม่ |
+
+`android.yml` ไม่รันทุก push เพราะตัวหุ้ม APK แทบไม่ต้องเปลี่ยน — เนื้อหาอัปเดตผ่าน Pages อยู่แล้ว
+ถ้าอยากได้ APK ตัวใหม่เมื่อไหร่ก็เข้า Actions → *Build Android APK* → **Run workflow**
+
+### ลายเซ็นของ APK
+
+ถ้าไม่ได้ตั้งค่าอะไร CI จะสร้างกุญแจเซ็นใหม่ทุกครั้งที่ build แปลว่า**ถ้าลง APK ตัวใหม่ทับตัวเก่าจะขึ้น error
+ต้องถอนแอปเดิมออกก่อน** (ข้อมูลในแอปจะหายไปด้วย)
+
+อยากให้ลายเซ็นคงที่และอัปเดตทับได้ ให้สร้างกุญแจเก็บไว้เป็น secret:
+
+```bash
+keytool -genkeypair -v -keystore gobsong.jks -alias gobsong \
+  -keyalg RSA -keysize 2048 -validity 10000 \
+  -storepass <รหัสที่ตั้งเอง> -keypass <รหัสที่ตั้งเอง> \
+  -dname "CN=Gob Song, O=Personal, C=TH"
+
+base64 -w0 gobsong.jks    # เอาผลลัพธ์ไปใส่ secret
+```
+
+แล้วไปที่ **Settings → Secrets and variables → Actions** เพิ่ม 4 ตัว:
+`ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`
+
+⚠️ เก็บไฟล์ `.jks` ไว้ให้ดีและอย่า commit ลง repo (repo นี้เป็น public) — `.gitignore` กันไว้ให้แล้ว
 
 ## โครงสร้างไฟล์
 
 ```
-index.html            แอปทั้งหมด (HTML + CSS + JS + ข้อมูลเริ่มต้น) ในไฟล์เดียว
-manifest.webmanifest  ข้อมูลแอปสำหรับติดตั้งบนหน้าจอโฮม
-sw.js                 service worker แคชแบบ cache-first ให้เปิดออฟไลน์ได้
-icon.svg              ไอคอนแอป
+index.html                  แอปทั้งหมด (HTML + CSS + JS + ข้อมูลเริ่มต้น) ในไฟล์เดียว
+manifest.webmanifest        ข้อมูลแอปสำหรับติดตั้งบนหน้าจอโฮม
+sw.js                       service worker แคชแบบ cache-first ให้เปิดออฟไลน์ได้
+icon.svg                    ไอคอนแอป
+android/                    โปรเจกต์ Android ตัวหุ้ม (WebView ที่โหลด URL ของ Pages)
+.github/workflows/          workflow deploy Pages และ build APK
 ```
 
 ## ข้อควรทราบเรื่องข้อมูล
