@@ -1,4 +1,4 @@
-const CACHE = 'envbudget-v1';
+const CACHE = 'envbudget-v2';
 const ASSETS = [
   './',
   './index.html',
