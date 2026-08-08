@@ -38,14 +38,12 @@
 
 URL ของแอป: **https://hardza1230.github.io/CongratePrim/**
 
-ครั้งแรกต้องเปิดสวิตช์ Pages ก่อนหนึ่งครั้ง (ทำครั้งเดียวจบ):
+workflow จะเปิด Pages ให้เองในการรันครั้งแรก ไม่ต้องไปตั้งค่าอะไร
 
-1. ไปที่ **Settings → Pages** ของ repo
-2. หัวข้อ *Build and deployment* → **Source** เลือก **GitHub Actions**
-3. กลับไปที่แท็บ **Actions** เปิด workflow *Deploy to GitHub Pages* แล้วกด **Run workflow**
-   (หรือ push อะไรก็ได้ขึ้น `main` มันจะ deploy เอง)
+ถ้าการรันครั้งแรกล้มที่ขั้นตอน *Configure Pages* (บางบัญชีไม่ยอมให้เปิดผ่าน API) ให้เปิดเองครั้งเดียว:
+**Settings → Pages → Build and deployment → Source** เลือก **GitHub Actions** แล้วสั่งรัน workflow ใหม่
 
-จากนั้นบนมือถือ:
+บนมือถือ:
 
 - **iPhone (Safari)** เปิด URL → ปุ่มแชร์ → เพิ่มไปยังหน้าจอโฮม
 - **Android (Chrome)** เปิด URL → เมนู ⋮ → ติดตั้งแอป
