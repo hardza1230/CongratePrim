@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ธีมมืด — ทำให้หน้าเว็บสลับเป็นโหมดมืดตามระบบโดยอัตโนมัติ -->
+    <style name="AppTheme" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/window_dark</item>
+        <item name="android:statusBarColor">@color/window_dark</item>
+        <item name="android:navigationBarColor">@color/window_dark</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:isLightTheme">false</item>
+    </style>
+</resources>

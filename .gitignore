@@ -1,0 +1,10 @@
+# Android build outputs
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+
+# ห้าม commit ไฟล์ลายเซ็นแอปเด็ดขาด — CI สร้างเอง หรือดึงจาก repository secret
+*.jks
+*.keystore

@@ -1,0 +1,28 @@
+{
+  "name": "งบซอง — Envelope Budgeting",
+  "short_name": "งบซอง",
+  "description": "แอปทำงบประมาณแบบซอง สำหรับวางแผนการเงินครัวเรือน",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f7f6",
+  "theme_color": "#10b981",
+  "lang": "th",
+  "dir": "ltr",
+  "categories": ["finance", "productivity"],
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
