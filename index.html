@@ -2538,6 +2538,13 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', function () {
     navigator.serviceWorker.register('./sw.js').catch(function () {});
   });
+  // service worker ตัวใหม่เข้าคุมเมื่อไหร่ ให้โหลดหน้าใหม่รอบเดียวเพื่อรับเวอร์ชันล่าสุด
+  let reloading = false;
+  navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (reloading) return;
+    reloading = true;
+    window.location.reload();
+  });
 }
 })();
 </script>
