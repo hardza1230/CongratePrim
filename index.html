@@ -175,7 +175,7 @@ main {
 .tabbar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
   max-width: var(--app-w); margin: 0 auto;
-  display: grid; grid-template-columns: repeat(3, 1fr);
+  display: grid; grid-template-columns: repeat(2, 1fr);
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -222,6 +222,7 @@ main {
   width: 190px; height: 190px; border-radius: 50%;
   background: rgba(255, 255, 255, .12);
 }
+.hero.bad { background: linear-gradient(140deg, #b91c1c, #dc2626); }
 .hero .lbl { font-size: 12.5px; opacity: .9; }
 .hero .big { font-size: 33px; font-weight: 700; margin-top: 2px; letter-spacing: -.02em; }
 .hero-split { display: flex; gap: 10px; margin-top: 16px; position: relative; z-index: 1; }
@@ -449,13 +450,19 @@ input.amount { font-size: 26px; font-weight: 700; text-align: center; padding: 1
 .pick .nm { display: block; font-weight: 550; font-size: 14px; overflow-wrap: anywhere; }
 .pick .sub { display: block; font-size: 11px; color: var(--text-3); }
 .pick .amt {
-  margin-left: auto; flex: none; width: 96px; text-align: right;
-  font-weight: 650; font-variant-numeric: tabular-nums;
-  padding: 8px 10px; border-radius: 10px; background: var(--surface-2);
-  border: 1px dashed var(--line); font-size: 13.5px;
+  flex: none; text-align: right;
+  font-weight: 650; font-variant-numeric: tabular-nums; font-size: 14px;
 }
-.pick.on .amt { border-style: solid; border-color: var(--brand); }
-.pick .amt:disabled { color: var(--text-3); }
+.pick .amt.done { color: var(--text-3); text-decoration: line-through; }
+.pick .box { cursor: pointer; }
+
+/* แถวรายการที่ตั้งงบไว้ */
+.budrow { padding: 12px 0; }
+.budrow + .budrow { border-top: 1px solid var(--line); }
+.budrow .top { display: flex; align-items: center; gap: 11px; margin-bottom: 9px; }
+.budrow .nm { display: block; font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.budrow .sub { display: block; font-size: 11.5px; color: var(--text-3); overflow-wrap: anywhere; }
+.budrow .spend { width: auto; flex: none; padding: 8px 12px; font-size: 12.5px; }
 
 .row.tap { cursor: pointer; border-radius: 12px; transition: background .15s; }
 .row.tap:active { background: var(--surface-2); }
@@ -552,7 +559,7 @@ input.amount { font-size: 26px; font-weight: 700; text-align: center; padding: 1
       <div class="brandmark">฿</div>
       <div style="min-width:0">
         <h1>งบซอง</h1>
-        <div class="sub">Envelope Budgeting</div>
+        <div class="sub">กระแสเงินสดรายเดือน</div>
       </div>
       <button class="icon-btn" data-action="toggle-theme" title="สลับธีม" aria-label="สลับธีมสว่าง/มืด" style="margin-left:auto">🌗</button>
     </div>
@@ -564,14 +571,12 @@ input.amount { font-size: 26px; font-weight: 700; text-align: center; padding: 1
   </header>
 
   <main>
-    <section class="view active" id="view-overview"></section>
-    <section class="view" id="view-envelopes"></section>
+    <section class="view active" id="view-home"></section>
     <section class="view" id="view-accounts"></section>
   </main>
 
   <nav class="tabbar" role="tablist">
-    <button role="tab" aria-selected="true" data-action="tab" data-tab="overview"><span class="ic">📊</span>ภาพรวม</button>
-    <button role="tab" aria-selected="false" data-action="tab" data-tab="envelopes"><span class="ic">✉️</span>ซอง</button>
+    <button role="tab" aria-selected="true" data-action="tab" data-tab="home"><span class="ic">🏠</span>หน้าแรก</button>
     <button role="tab" aria-selected="false" data-action="tab" data-tab="accounts"><span class="ic">🏦</span>บัญชี</button>
   </nav>
 </div>
@@ -617,12 +622,16 @@ const KINDS = [
   { id: 'ewallet',    name: 'e-Wallet',     emoji: '📱' },
   { id: 'savings',    name: 'เงินสำรอง',    emoji: '🛡️' },
   { id: 'receivable', name: 'ลูกหนี้',       emoji: '🧾' },
+  { id: 'debt',       name: 'หนี้สิน',       emoji: '💳' },
   { id: 'other',      name: 'อื่น ๆ',        emoji: '👛' }
 ];
 
+// บัญชีประเภทไหนถือเป็นเงินสดใช้ได้จริงโดยปริยาย
+const LIQUID_BY_DEFAULT = ['bank', 'cash', 'ewallet', 'savings'];
+
 function seed() {
   return {
-    schema: 3,
+    schema: 4,
     activeMonth: monthKey(new Date()),
     owners: [
       { id: 'o1', name: 'จ๋า', color: '#ec4899' },
@@ -630,50 +639,46 @@ function seed() {
       { id: 'o3', name: 'กองกลาง', color: '#f59e0b' }
     ],
     accounts: [
-      { id: 'a1',  ownerId: 'o1', kind: 'savings',    bankId: '',          emoji: '🛡️', name: 'เงินสำรอง',        balance: 10000, countable: true,  hidden: false, color: '', note: '' },
-      { id: 'a2',  ownerId: 'o1', kind: 'cash',       bankId: '',          emoji: '💵', name: 'เงินสด',            balance: 3100,  countable: true,  hidden: false, color: '', note: '' },
-      { id: 'a3',  ownerId: 'o1', kind: 'bank',       bankId: 'scb',       emoji: '🏦', name: 'ไทยพาณิชย์',        balance: 2366,  countable: true,  hidden: false, color: '', note: '' },
-      { id: 'a4',  ownerId: 'o1', kind: 'bank',       bankId: 'kkp',       emoji: '🏦', name: 'เกียรตินาคินภัทร',   balance: 18811, countable: true,  hidden: false, color: '', note: '' },
-      { id: 'a5',  ownerId: 'o1', kind: 'bank',       bankId: 'gsb',       emoji: '🏦', name: 'ออมสิน',            balance: 28634, countable: true,  hidden: false, color: '', note: '' },
-      { id: 'a6',  ownerId: 'o1', kind: 'bank',       bankId: 'kbank',     emoji: '🏦', name: 'กสิกรไทย',          balance: 11445, countable: true,  hidden: false, color: '', note: '' },
-      { id: 'a7',  ownerId: 'o1', kind: 'bank',       bankId: 'ttb',       emoji: '🏦', name: 'ทีทีบี',             balance: 37900, countable: true,  hidden: false, color: '', note: '' },
-      { id: 'a8',  ownerId: 'o1', kind: 'receivable', bankId: '',          emoji: '🧾', name: 'ลูกหนี้',            balance: 4000,  countable: false, hidden: false, color: '', note: 'เงินที่คนอื่นยืมไป' },
-      { id: 'a9',  ownerId: 'o1', kind: 'ewallet',    bankId: 'truemoney', emoji: '📱', name: 'TrueMoney',         balance: 0,     countable: true,  hidden: false, color: '', note: '' },
-      { id: 'a10', ownerId: 'o1', kind: 'ewallet',    bankId: 'shopeepay', emoji: '🛍️', name: 'ShopeePay',         balance: 0,     countable: true,  hidden: false, color: '', note: '' },
-      { id: 'a11', ownerId: 'o2', kind: 'savings',    bankId: '',          emoji: '🛡️', name: 'เงินสำรอง',        balance: 10000, countable: true,  hidden: false, color: '', note: '' },
-      { id: 'a12', ownerId: 'o2', kind: 'cash',       bankId: '',          emoji: '💵', name: 'เงินสด',            balance: 500,   countable: true,  hidden: false, color: '', note: '' },
-      { id: 'a13', ownerId: 'o2', kind: 'bank',       bankId: 'ktb',       emoji: '🏦', name: 'กรุงไทย',           balance: 1735,  countable: true,  hidden: false, color: '', note: '' },
-      { id: 'a14', ownerId: 'o3', kind: 'other',      bankId: '',          emoji: '👛', name: 'บัญชีร่วม',         balance: 0,     countable: true,  hidden: false, color: '', note: '' }
+      { id: 'a1',  ownerId: 'o1', kind: 'savings',    bankId: '',          emoji: '🛡️', name: 'เงินสำรอง',        balance: 10000, countable: true, liquid: true, hidden: false, color: '', note: '' },
+      { id: 'a2',  ownerId: 'o1', kind: 'cash',       bankId: '',          emoji: '💵', name: 'เงินสด',            balance: 3100,  countable: true, liquid: true, hidden: false, color: '', note: '' },
+      { id: 'a3',  ownerId: 'o1', kind: 'bank',       bankId: 'scb',       emoji: '🏦', name: 'ไทยพาณิชย์',        balance: 2366,  countable: true, liquid: true, hidden: false, color: '', note: '' },
+      { id: 'a4',  ownerId: 'o1', kind: 'bank',       bankId: 'kkp',       emoji: '🏦', name: 'เกียรตินาคินภัทร',   balance: 18811, countable: true, liquid: true, hidden: false, color: '', note: '' },
+      { id: 'a5',  ownerId: 'o1', kind: 'bank',       bankId: 'gsb',       emoji: '🏦', name: 'ออมสิน',            balance: 28634, countable: true, liquid: true, hidden: false, color: '', note: '' },
+      { id: 'a6',  ownerId: 'o1', kind: 'bank',       bankId: 'kbank',     emoji: '🏦', name: 'กสิกรไทย',          balance: 11445, countable: true, liquid: true, hidden: false, color: '', note: '' },
+      { id: 'a7',  ownerId: 'o1', kind: 'bank',       bankId: 'ttb',       emoji: '🏦', name: 'ทีทีบี',             balance: 37900, countable: true, liquid: true, hidden: false, color: '', note: '' },
+      { id: 'a8',  ownerId: 'o1', kind: 'receivable', bankId: '',          emoji: '🧾', name: 'ลูกหนี้',            balance: 4000,  countable: false, liquid: false, hidden: false, color: '', note: 'เงินที่คนอื่นยืมไป' },
+      { id: 'a9',  ownerId: 'o1', kind: 'ewallet',    bankId: 'truemoney', emoji: '📱', name: 'TrueMoney',         balance: 0,     countable: true, liquid: true, hidden: false, color: '', note: '' },
+      { id: 'a10', ownerId: 'o1', kind: 'ewallet',    bankId: 'shopeepay', emoji: '🛍️', name: 'ShopeePay',         balance: 0,     countable: true, liquid: true, hidden: false, color: '', note: '' },
+      { id: 'a11', ownerId: 'o2', kind: 'savings',    bankId: '',          emoji: '🛡️', name: 'เงินสำรอง',        balance: 10000, countable: true, liquid: true, hidden: false, color: '', note: '' },
+      { id: 'a12', ownerId: 'o2', kind: 'cash',       bankId: '',          emoji: '💵', name: 'เงินสด',            balance: 500,   countable: true, liquid: true, hidden: false, color: '', note: '' },
+      { id: 'a13', ownerId: 'o2', kind: 'bank',       bankId: 'ktb',       emoji: '🏦', name: 'กรุงไทย',           balance: 1735,  countable: true, liquid: true, hidden: false, color: '', note: '' },
+      { id: 'a14', ownerId: 'o3', kind: 'other',      bankId: '',          emoji: '👛', name: 'บัญชีร่วม',         balance: 0,     countable: true, liquid: true, hidden: false, color: '', note: '' }
     ],
-    categories: [
-      { id: 'c1', name: 'จ่ายประจำ', color: '#6366f1' },
-      { id: 'c2', name: 'จ่ายทั่วไป', color: '#10b981' },
-      { id: 'c3', name: 'รับปริญญา', color: '#f59e0b' }
+    // รายการที่ต้องจ่าย/ตั้งงบไว้ในแต่ละเดือน
+    //   fixed    = ยอดคงที่ ติ๊กว่าจ่ายแล้วหรือยัง
+    //   variable = ตั้งงบไว้ ใช้ไปเท่าไหร่ เหลือให้ใช้อีกเท่าไหร่
+    items: [
+      { id: 'e1',  type: 'fixed',    ownerId: 'o2', emoji: '🏠', name: 'ค่าบ้าน',                 budget: 15600, linkedAccountId: '' },
+      { id: 'e2',  type: 'fixed',    ownerId: 'o2', emoji: '🚗', name: 'ค่ารถ',                   budget: 7924,  linkedAccountId: '' },
+      { id: 'e3',  type: 'fixed',    ownerId: 'o2', emoji: '🛡️', name: 'ค่าประกันรถ',            budget: 2044,  linkedAccountId: '' },
+      { id: 'e4',  type: 'fixed',    ownerId: 'o2', emoji: '🏢', name: 'ค่าหอ',                   budget: 4500,  linkedAccountId: '' },
+      { id: 'e5',  type: 'fixed',    ownerId: 'o2', emoji: '👨‍👩‍👧‍👦', name: 'ให้พ่อ+แม่',      budget: 3000,  linkedAccountId: '' },
+      { id: 'e6',  type: 'fixed',    ownerId: 'o2', emoji: '📱', name: 'OPPO Find X9',            budget: 2699,  linkedAccountId: '' },
+      { id: 'e7',  type: 'fixed',    ownerId: 'o2', emoji: '📞', name: 'ค่าโทรศัพท์',             budget: 934,   linkedAccountId: '' },
+      { id: 'e8',  type: 'fixed',    ownerId: 'o2', emoji: '🌐', name: 'อินเทอร์เน็ต',            budget: 535,   linkedAccountId: '' },
+      { id: 'e9',  type: 'fixed',    ownerId: 'o2', emoji: '🎬', name: 'Netflix',                 budget: 105,   linkedAccountId: '' },
+      { id: 'e10', type: 'fixed',    ownerId: 'o2', emoji: '▶️', name: 'Youtube Premium',         budget: 78,    linkedAccountId: '' },
+      { id: 'e11', type: 'variable', ownerId: 'o2', emoji: '⛽', name: 'ค่าน้ำมัน',               budget: 3000,  linkedAccountId: '' },
+      { id: 'e12', type: 'variable', ownerId: 'o2', emoji: '🍲', name: 'ค่าอาหาร',                budget: 7350,  linkedAccountId: '' },
+      { id: 'e13', type: 'variable', ownerId: 'o2', emoji: '🏪', name: '7-Eleven',                budget: 2100,  linkedAccountId: '' },
+      { id: 'e14', type: 'variable', ownerId: 'o2', emoji: '🛒', name: 'Lotus',                   budget: 2500,  linkedAccountId: '' },
+      { id: 'e15', type: 'variable', ownerId: 'o2', emoji: '🛍️', name: 'Tiktok / ช้อปปิ้งออนไลน์', budget: 0,   linkedAccountId: '' },
+      { id: 'e16', type: 'variable', ownerId: 'o2', emoji: '🚌', name: 'ค่ารถ / ค่าเดินทาง',      budget: 0,     linkedAccountId: '' },
+      { id: 'e17', type: 'variable', ownerId: 'o2', emoji: '🍲', name: 'ค่าอาหาร (รับปริญญา)',    budget: 0,     linkedAccountId: '' }
     ],
-    envelopes: [
-      { id: 'e1',  categoryId: 'c1', ownerId: 'o2', emoji: '🏠', name: 'ค่าบ้าน',                 budget: 15600 },
-      { id: 'e2',  categoryId: 'c1', ownerId: 'o2', emoji: '🚗', name: 'ค่ารถ',                   budget: 7924 },
-      { id: 'e3',  categoryId: 'c1', ownerId: 'o2', emoji: '🛡️', name: 'ค่าประกันรถ',            budget: 2044 },
-      { id: 'e4',  categoryId: 'c1', ownerId: 'o2', emoji: '🏢', name: 'ค่าหอ',                   budget: 4500 },
-      { id: 'e5',  categoryId: 'c1', ownerId: 'o2', emoji: '👨‍👩‍👧‍👦', name: 'ให้พ่อ+แม่',      budget: 3000 },
-      { id: 'e6',  categoryId: 'c1', ownerId: 'o2', emoji: '📱', name: 'OPPO Find X9',            budget: 2699 },
-      { id: 'e7',  categoryId: 'c1', ownerId: 'o2', emoji: '📞', name: 'ค่าโทรศัพท์',             budget: 934 },
-      { id: 'e8',  categoryId: 'c1', ownerId: 'o2', emoji: '🌐', name: 'อินเทอร์เน็ต',            budget: 535 },
-      { id: 'e9',  categoryId: 'c1', ownerId: 'o2', emoji: '🎬', name: 'Netflix',                 budget: 105 },
-      { id: 'e10', categoryId: 'c1', ownerId: 'o2', emoji: '▶️', name: 'Youtube Premium',         budget: 78 },
-      { id: 'e11', categoryId: 'c2', ownerId: 'o2', emoji: '⛽', name: 'ค่าน้ำมัน',               budget: 3000 },
-      { id: 'e12', categoryId: 'c2', ownerId: 'o2', emoji: '🍲', name: 'ค่าอาหาร',                budget: 7350 },
-      { id: 'e13', categoryId: 'c2', ownerId: 'o2', emoji: '🏪', name: '7-Eleven',                budget: 2100 },
-      { id: 'e14', categoryId: 'c2', ownerId: 'o2', emoji: '🛒', name: 'Lotus',                   budget: 2500 },
-      { id: 'e15', categoryId: 'c2', ownerId: 'o2', emoji: '🛍️', name: 'Tiktok / ช้อปปิ้งออนไลน์', budget: 0 },
-      { id: 'e16', categoryId: 'c3', ownerId: 'o2', emoji: '🚌', name: 'ค่ารถ / ค่าเดินทาง',      budget: 0 },
-      { id: 'e17', categoryId: 'c3', ownerId: 'o2', emoji: '🍲', name: 'ค่าอาหาร',                budget: 0 }
-    ],
-    // จ่ายจริงของแต่ละซองแยกตามเดือน — เป็นข้อมูลสถานะล้วน ๆ ไม่ผูกกับยอดบัญชี
-    actuals: {},
-    transfers: [],
-    counts: [],
-    debts: []
+    // สิ่งที่บันทึกไว้ของแต่ละรายการในแต่ละเดือน — ข้อมูลสถานะล้วน ๆ ไม่ผูกกับยอดบัญชี
+    entries: {},
+    counts: []
   };
 }
 
@@ -712,15 +717,16 @@ function shiftMonth(key, step) {
 
 /* ========================= state ========================= */
 let state = load();
-let activeTab = 'overview';
+let activeTab = 'home';
 
 function load() {
   try {
     const raw = localStorage.getItem(STORE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    if (!parsed || !Array.isArray(parsed.envelopes) || !(parsed.schema >= 1)) return seed();
-    const wasOld = parsed.schema !== 3;
+    if (!parsed || !(parsed.schema >= 1)) return seed();
+    if (!Array.isArray(parsed.envelopes) && !Array.isArray(parsed.items)) return seed();
+    const wasOld = parsed.schema !== 4;
     const s = migrate(parsed);
     // เขียนผลการ migrate กลับทันที ไม่ต้องรอให้ผู้ใช้แตะอะไรก่อน
     // (ยังเรียก save() ไม่ได้ เพราะตัวแปร state ยังไม่ถูกกำหนดค่าตอนนี้)
@@ -733,17 +739,14 @@ function load() {
 
 // อัปข้อมูลเก่าในเครื่องให้เข้ากับสคีมาใหม่ โดยไม่ทิ้งของที่ผู้ใช้กรอกไว้แล้ว
 function migrate(s) {
-  s.transfers = s.transfers || [];
-  s.debts = s.debts || [];
   s.counts = s.counts || [];
   s.owners = s.owners || [];
-  s.categories = s.categories || [];
   s.accounts = s.accounts || [];
-  s.actuals = s.actuals || {};
   s.activeMonth = s.activeMonth || monthKey(new Date());
 
-  // schema 1–2 เก็บรายจ่ายเป็นรายการย่อย (txns) — ยุบเป็นยอดจ่ายจริงต่อซองต่อเดือน
+  // schema 1–2 เก็บรายจ่ายเป็นรายการย่อย (txns) — ยุบเป็นยอดต่อรายการต่อเดือนก่อน
   if (Array.isArray(s.txns)) {
+    s.actuals = s.actuals || {};
     s.txns.forEach(function (t) {
       if (!t || !t.envelopeId || !t.month) return;
       const per = s.actuals[t.envelopeId] || (s.actuals[t.envelopeId] = {});
@@ -752,22 +755,73 @@ function migrate(s) {
     delete s.txns;
   }
 
-  // ตารางบิลและซองรับส่วนต่างถูกเลิกใช้แล้ว
-  delete s.bills;
-  delete s.miscEnvelopeId;
-  s.envelopes.forEach(function (e) { delete e.recurring; delete e.dueDay; });
+  // schema ≤3 เรียกรายการว่า "ซอง" และจัดกลุ่มด้วยหมวดหมู่ — รอบนี้ใช้ประเภทแทน
+  if (Array.isArray(s.envelopes)) {
+    const fixedCats = (s.categories || [])
+      .filter(function (c) { return /ประจำ/.test(c.name || ''); })
+      .map(function (c) { return c.id; });
+    s.items = s.envelopes.map(function (e) {
+      return {
+        id: e.id, type: fixedCats.indexOf(e.categoryId) >= 0 ? 'fixed' : 'variable',
+        ownerId: e.ownerId, emoji: e.emoji, name: e.name,
+        budget: Number(e.budget) || 0, linkedAccountId: ''
+      };
+    });
+    delete s.envelopes;
+  }
+  s.items = s.items || [];
+
+  // actuals เก็บแค่ตัวเลข — ขยายเป็น entry ที่บอกได้ด้วยว่าติ๊กจ่ายแล้วหรือยัง
+  if (s.actuals) {
+    s.entries = s.entries || {};
+    Object.keys(s.actuals).forEach(function (itemId) {
+      const item = s.items.find(function (x) { return x.id === itemId; });
+      const per = s.entries[itemId] || (s.entries[itemId] = {});
+      Object.keys(s.actuals[itemId]).forEach(function (month) {
+        const n = Number(s.actuals[itemId][month]) || 0;
+        per[month] = { paid: item && item.type === 'fixed' ? n > 0 : false, amount: n, principal: 0, interest: 0 };
+      });
+    });
+    delete s.actuals;
+  }
+  s.entries = s.entries || {};
 
   s.accounts.forEach(function (a) {
     if (a.kind === undefined) a.kind = guessKind(a);
     if (a.bankId === undefined) a.bankId = guessBank(a.name);
     if (a.countable === undefined) a.countable = a.kind !== 'receivable';
+    if (a.liquid === undefined) a.liquid = LIQUID_BY_DEFAULT.indexOf(a.kind) >= 0;
     if (a.hidden === undefined) a.hidden = false;
     if (a.color === undefined) a.color = '';
     if (a.note === undefined) a.note = '';
     a.balance = Number(a.balance) || 0;
   });
 
-  s.schema = 3;
+  // หนี้สินเคยเป็นลิสต์แยก — ย้ายมาเป็นบัญชีประเภทหนี้ จะได้นับตอนนับเงินได้ด้วย
+  if (Array.isArray(s.debts)) {
+    s.debts.forEach(function (d) {
+      s.accounts.push({
+        id: uid('a'), ownerId: d.ownerId || (s.owners[0] || {}).id, kind: 'debt', bankId: '',
+        emoji: '💳', name: d.name || 'หนี้สิน', balance: Number(d.remaining) || 0,
+        countable: true, liquid: false, hidden: false, color: '',
+        note: d.monthly ? 'ผ่อน ' + d.monthly + '/เดือน' : ''
+      });
+    });
+    delete s.debts;
+  }
+
+  // เลิกใช้แล้ว: ตารางบิล · ซองรับส่วนต่าง · หมวดหมู่ · การโยกงบระหว่างซอง
+  delete s.bills;
+  delete s.miscEnvelopeId;
+  delete s.categories;
+  delete s.transfers;
+  s.items.forEach(function (i) {
+    delete i.categoryId; delete i.recurring; delete i.dueDay;
+    if (i.type === undefined) i.type = 'variable';
+    if (i.linkedAccountId === undefined) i.linkedAccountId = '';
+  });
+
+  s.schema = 4;
   return s;
 }
 
@@ -805,7 +859,6 @@ const byId = function (list, id) { return list.find(function (x) { return x.id =
 const owner = function (id) { return byId(state.owners, id); };
 const account = function (id) { return byId(state.accounts, id); };
 const category = function (id) { return byId(state.categories, id); };
-const envelope = function (id) { return byId(state.envelopes, id); };
 const bank = function (id) { return BANKS.find(function (b) { return b.id === id; }) || null; };
 const kindOf = function (id) { return KINDS.find(function (k) { return k.id === id; }) || KINDS[KINDS.length - 1]; };
 
@@ -817,63 +870,122 @@ function visibleAccounts(ownerId) {
   return state.accounts.filter(function (a) { return a.ownerId === ownerId; });
 }
 
-/* ================= การคำนวณ (รวมศูนย์ที่เดียว) ================= */
-function budgetOf(envId, month) {
-  const env = envelope(envId);
-  if (!env) return 0;
-  let b = Number(env.budget) || 0;
-  state.transfers.forEach(function (t) {
-    if (t.month !== month) return;
-    if (t.toEnvelopeId === envId) b += t.amount;
-    if (t.fromEnvelopeId === envId) b -= t.amount;
-  });
-  return b;
+/* ================= การคำนวณ (รวมศูนย์ที่เดียว) =================
+   แกนของแอปคือกระแสเงินสด ไม่ใช่ความมั่งคั่ง:
+     เงินสดตอนนี้ − ที่ยังไม่ได้จ่ายของเดือนนี้ = สิ้นเดือนจะเหลือ
+   ยอดหนี้ก้อนใหญ่อย่างหนี้บ้านจึงไม่มากลบตัวเลขที่ใช้ตัดสินใจรายเดือน */
+
+const item = function (id) { return byId(state.items, id); };
+const isDebt = function (a) { return a && a.kind === 'debt'; };
+
+// entry ของรายการหนึ่งในเดือนหนึ่ง — คืนค่าว่าง ๆ ถ้ายังไม่เคยบันทึก
+function entryOf(itemId, month) {
+  const per = state.entries[itemId];
+  const e = per && per[month];
+  return {
+    paid: !!(e && e.paid),
+    amount: e ? Number(e.amount) || 0 : 0,
+    principal: e ? Number(e.principal) || 0 : 0,
+    interest: e ? Number(e.interest) || 0 : 0
+  };
 }
-function spentOf(envId, month) {
-  const per = state.actuals[envId];
-  return per ? (Number(per[month]) || 0) : 0;
+
+function setEntry(itemId, month, patch) {
+  const per = state.entries[itemId] || (state.entries[itemId] = {});
+  const cur = entryOf(itemId, month);
+  const next = {
+    paid: patch.paid === undefined ? cur.paid : !!patch.paid,
+    amount: patch.amount === undefined ? cur.amount : Math.round((Number(patch.amount) || 0) * 100) / 100,
+    principal: patch.principal === undefined ? cur.principal : Math.round((Number(patch.principal) || 0) * 100) / 100,
+    interest: patch.interest === undefined ? cur.interest : Math.round((Number(patch.interest) || 0) * 100) / 100
+  };
+  if (!next.paid && !next.amount && !next.principal && !next.interest) delete per[month];
+  else per[month] = next;
+  if (!Object.keys(per).length) delete state.entries[itemId];
 }
-function leftOf(envId, month) { return budgetOf(envId, month) - spentOf(envId, month); }
+
+function budgetOf(itemId) {
+  const it = item(itemId);
+  return it ? Number(it.budget) || 0 : 0;
+}
+function spentOf(itemId, month) {
+  const it = item(itemId);
+  const e = entryOf(itemId, month);
+  // รายการแบบติ๊ก ถ้ายังไม่ติ๊กก็ยังไม่นับว่าจ่าย แม้จะเคยกรอกยอดไว้
+  if (it && it.type === 'fixed') return e.paid ? (e.amount || budgetOf(itemId)) : 0;
+  return e.amount;
+}
+// ส่วนที่ยังต้องจ่ายของรายการนี้ในเดือนนี้
+function remainingOf(itemId, month) {
+  const it = item(itemId);
+  if (!it) return 0;
+  if (it.type === 'fixed') return entryOf(itemId, month).paid ? 0 : budgetOf(itemId);
+  return Math.max(0, budgetOf(itemId) - spentOf(itemId, month));
+}
 function statusOf(budget, spent) {
   if (spent > budget) return 'over';
   if (budget > 0 && spent / budget >= 0.8) return 'warn';
   return 'ok';
 }
+
+function itemsOfType(type) {
+  return state.items.filter(function (i) { return (i.type || 'variable') === type; });
+}
+
+/* ---- ตัวเลขกระแสเงินสด ---- */
+function cashNow() {
+  return state.accounts.reduce(function (sum, a) {
+    return (!isDebt(a) && a.liquid !== false) ? sum + (Number(a.balance) || 0) : sum;
+  }, 0);
+}
+function unpaidOf(month) {
+  return state.items.reduce(function (sum, i) { return sum + remainingOf(i.id, month); }, 0);
+}
+function leftAtMonthEnd(month) { return cashNow() - unpaidOf(month); }
+
 function totals(month) {
   let budget = 0, spent = 0;
-  state.envelopes.forEach(function (e) { budget += budgetOf(e.id, month); spent += spentOf(e.id, month); });
+  state.items.forEach(function (i) { budget += budgetOf(i.id); spent += spentOf(i.id, month); });
   return { budget: budget, spent: spent, left: budget - spent };
 }
-function totalAssets() { return state.accounts.reduce(function (s, a) { return s + (Number(a.balance) || 0); }, 0); }
-function totalDebts() { return state.debts.reduce(function (s, d) { return s + (Number(d.remaining) || 0); }, 0); }
+
+function totalAssets() {
+  return state.accounts.reduce(function (s, a) { return isDebt(a) ? s : s + (Number(a.balance) || 0); }, 0);
+}
+function totalDebts() {
+  return state.accounts.reduce(function (s, a) { return isDebt(a) ? s + (Number(a.balance) || 0) : s; }, 0);
+}
 function assetsOfOwner(ownerId) {
-  return state.accounts.reduce(function (s, a) { return a.ownerId === ownerId ? s + (Number(a.balance) || 0) : s; }, 0);
+  return state.accounts.reduce(function (s, a) {
+    return (a.ownerId === ownerId && !isDebt(a)) ? s + (Number(a.balance) || 0) : s;
+  }, 0);
+}
+function debtsOfOwner(ownerId) {
+  return state.accounts.reduce(function (s, a) {
+    return (a.ownerId === ownerId && isDebt(a)) ? s + (Number(a.balance) || 0) : s;
+  }, 0);
 }
 
 /* ========================= actions ========================= */
 
-/* ตั้งยอดจ่ายจริงของซองในเดือนนั้น — ทับค่าเดิมไปเลย
-   เป็นข้อมูลสถานะล้วน ๆ ไม่แตะยอดบัญชี เพราะยอดบัญชีได้ความจริงจากการนับเงินอยู่แล้ว */
-function setActual(envId, month, amount) {
-  const v = Math.round((Number(amount) || 0) * 100) / 100;
-  const per = state.actuals[envId] || (state.actuals[envId] = {});
-  if (v > 0) per[month] = v;
-  else delete per[month];
-  if (!Object.keys(per).length) delete state.actuals[envId];
+/* บันทึกสิ่งที่จ่ายไปแล้วของรายการหนึ่งในเดือนหนึ่ง
+   ทั้งหมดนี้เป็นข้อมูลสถานะ ไม่ไปแตะยอดบัญชี — ยอดบัญชีมาจากการนับเงินเท่านั้น */
+function recordItem(itemId, month, patch) {
+  setEntry(itemId, month, patch);
   save();
 }
 
-function moveMoney(fromId, toId, amount) {
-  state.transfers.push({
-    id: uid('m'), fromEnvelopeId: fromId, toEnvelopeId: toId,
-    amount: amount, month: state.activeMonth, date: todayISO()
-  });
+function toggleItemPaid(itemId, month) {
+  const cur = entryOf(itemId, month);
+  const next = !cur.paid;
+  setEntry(itemId, month, { paid: next, amount: next ? (cur.amount || budgetOf(itemId)) : cur.amount });
   save();
+  return next;
 }
 
-/* ---------------- นับเงิน = snapshot ทรัพย์สิน ---------------- */
+/* ---------------- นับเงิน = snapshot ยอดบัญชี ---------------- */
 
-// บันทึกยอดบัญชีที่นับได้ พร้อมเก็บภาพรวม ณ ตอนนั้นไว้วาดกราฟ net worth
+// บันทึกยอดบัญชีที่นับได้ พร้อมเก็บเงินสด ณ ตอนนั้นไว้วาดกราฟกระแสเงินสด
 function saveCount(draft) {
   const before = {}, balances = {};
   let diff = 0;
@@ -892,15 +1004,15 @@ function saveCount(draft) {
     if (acc) acc.balance = balances[accId];
   });
 
-  const assets = totalAssets(), debts = totalDebts();
+  const assets = totalAssets(), debts = totalDebts(), cash = cashNow();
   state.counts.push({
     id: uid('c'), date: todayISO(), month: state.activeMonth,
     before: before, balances: balances,
-    assets: assets, debts: debts, netWorth: assets - debts,
+    cash: cash, assets: assets, debts: debts, netWorth: assets - debts,
     note: draft.note || ''
   });
   save();
-  return { diff: Math.round(diff * 100) / 100, netWorth: assets - debts };
+  return { diff: Math.round(diff * 100) / 100, cash: cash };
 }
 
 // ลบ snapshot — ถ้าเป็นตัวล่าสุดจะคืนยอดบัญชีกลับไปเป็นก่อนนับให้ด้วย
@@ -1017,54 +1129,54 @@ function lineChart(points, opts) {
     ticks + '</svg>';
 }
 
-// กราฟแท่ง — ชุดเดียว ใช้สีเดียวทุกแท่ง (ห้ามไล่เฉดตามค่า) + เส้นอ้างอิงงบ
 /* ========================= views ========================= */
-let nwTable = false;
+let cashTable = false;
 
-function renderOverview() {
+function renderHome() {
   const m = state.activeMonth;
-  const t = totals(m);
-  const assets = totalAssets(), debts = totalDebts();
-  const pct = t.budget > 0 ? t.spent / t.budget : 0;
-
+  const cash = cashNow(), unpaid = unpaidOf(m), left = cash - unpaid;
   const last = lastCount();
   const since = last ? daysSince(last.date) : null;
-  let html = '<button class="count-cta" data-action="start-count">' +
+
+  // ---- ตัวเลขที่ใช้ตัดสินใจ ----
+  let html = '<div class="card hero' + (left < 0 ? ' bad' : '') + '">' +
+    '<div class="lbl">' + (left < 0 ? '⚠️ สิ้นเดือนนี้จะขาด' : '💰 สิ้นเดือนนี้จะเหลือ') + '</div>' +
+    '<div class="big num">' + money(left) + '</div>' +
+    '<div class="hero-split">' +
+      '<div><div class="k">เงินสดตอนนี้</div><div class="v num">' + money(cash) + '</div></div>' +
+      '<div><div class="k">ยังไม่ได้จ่าย</div><div class="v num">' + money(unpaid) + '</div></div>' +
+    '</div>' +
+  '</div>';
+
+  html += '<button class="count-cta" data-action="start-count" style="margin:12px 0 0">' +
     '<span class="ic">🧮</span>' +
     '<span style="min-width:0"><span class="t">นับเงิน</span>' +
     '<span class="s">' + (last
       ? 'นับล่าสุด ' + (since === 0 ? 'วันนี้' : since === 1 ? 'เมื่อวาน' : since + ' วันก่อน') +
-        ' · สุทธิ ' + money(last.netWorth)
-      : 'ยังไม่เคยนับ — เก็บภาพทรัพย์สินครั้งแรกได้เลย') + '</span></span>' +
+        ' · เงินสด ' + money(typeof last.cash === 'number' ? last.cash : last.assets)
+      : 'ยังไม่เคยนับ — เก็บยอดครั้งแรกได้เลย') + '</span></span>' +
     '<span class="go">›</span>' +
   '</button>';
 
-  html += '<div class="card hero">' +
-    '<div class="lbl">💎 สินทรัพย์สุทธิ (Net Worth)</div>' +
-    '<div class="big num">' + money(assets - debts) + '</div>' +
-    '<div class="hero-split">' +
-      '<div><div class="k">💰 สินทรัพย์รวม</div><div class="v num">' + money(assets) + '</div></div>' +
-      '<div><div class="k">💳 หนี้สินรวม</div><div class="v num">' + money(debts) + '</div></div>' +
-    '</div>' +
-  '</div>';
+  // ---- checklist เดือนนี้ ----
+  html += checklistHTML(m, false);
 
-  // กราฟ net worth จาก snapshot ที่นับไว้ — ชุดข้อมูลเดียว จึงไม่ต้องมีคำอธิบายสี
+  // ---- กราฟเงินสด ----
   const points = state.counts
-    .filter(function (c) { return typeof c.netWorth === 'number'; })
-    .map(function (c) { return { v: c.netWorth, label: c.date, tick: c.date.slice(5).replace('-', '/') }; });
-  const nowNet = assets - debts;
-  if (!points.length || points[points.length - 1].v !== nowNet) {
-    points.push({ v: nowNet, label: 'ตอนนี้', tick: 'ตอนนี้' });
+    .filter(function (c) { return typeof c.cash === 'number'; })
+    .map(function (c) { return { v: c.cash, label: c.date, tick: c.date.slice(5).replace('-', '/') }; });
+  if (!points.length || points[points.length - 1].v !== cash) {
+    points.push({ v: cash, label: 'ตอนนี้', tick: 'ตอนนี้' });
   }
 
-  html += '<div class="section-title"><span>สินทรัพย์สุทธิย้อนหลัง</span>' +
-    (points.length > 1 ? '<button class="muted" data-action="nw-view">' +
-      (nwTable ? '📈 ดูเป็นกราฟ' : '📋 ดูเป็นตัวเลข') + '</button>' : '') +
+  html += '<div class="section-title"><span>เงินสดย้อนหลัง</span>' +
+    (points.length > 1 ? '<button class="muted" data-action="cash-view">' +
+      (cashTable ? '📈 ดูเป็นกราฟ' : '📋 ดูเป็นตัวเลข') + '</button>' : '') +
     '</div><div class="card">';
   if (points.length < 2) {
     html += '<div class="empty">ยังไม่มีประวัติพอจะวาดกราฟ<br>' +
       '<span class="muted">กดนับเงินเก็บไว้หลาย ๆ ครั้ง กราฟจะค่อย ๆ เต็มขึ้นเอง</span></div>';
-  } else if (nwTable) {
+  } else if (cashTable) {
     points.slice().reverse().forEach(function (p, i) {
       html += '<div class="row"' + (i === 0 ? ' style="padding-top:0"' : '') + '>' +
         '<div style="min-width:0"><div class="nm">' + esc(p.label) + '</div></div>' +
@@ -1072,129 +1184,102 @@ function renderOverview() {
     });
   } else {
     const diff = points[points.length - 1].v - points[0].v;
-    html += lineChart(points, { aria: 'สินทรัพย์สุทธิย้อนหลังจากการนับเงิน' }) +
+    html += lineChart(points, { aria: 'เงินสดย้อนหลังจากการนับเงิน' }) +
       '<div class="kv" style="margin-top:10px"><span class="k">เปลี่ยนแปลงตั้งแต่ครั้งแรก</span>' +
       '<span class="v num" style="color:' + (diff < 0 ? 'var(--danger)' : 'var(--brand-ink)') + '">' +
       (diff > 0 ? '+' : '') + money(diff) + '</span></div>';
   }
   html += '</div>';
 
-  html += '<div class="section-title"><span>งบประมาณเดือน ' + esc(monthLabel(m, true)) + '</span></div>';
-  html += '<div class="card"><div class="ring-wrap">' + ring(pct, 'ใช้ไปแล้ว') +
-    '<div style="flex:1;min-width:0">' +
-      '<div class="kv"><span class="k">งบทั้งหมด</span><span class="v num">' + money(t.budget) + '</span></div>' +
-      '<div class="kv"><span class="k">จ่ายจริง</span><span class="v num">' + money(t.spent) + '</span></div>' +
-      '<div class="kv"><span class="k">คงเหลือ</span><span class="v num" style="color:' + (t.left < 0 ? 'var(--danger)' : 'var(--brand-ink)') + '">' + money(t.left) + '</span></div>' +
-    '</div>' +
-  '</div></div>';
-
-  html += '<div class="section-title"><span>แยกตามหมวดหมู่</span></div><div class="card">';
-  state.categories.forEach(function (c) {
-    let b = 0, s = 0;
-    state.envelopes.forEach(function (e) {
-      if (e.categoryId !== c.id) return;
-      b += budgetOf(e.id, m); s += spentOf(e.id, m);
-    });
-    const st = statusOf(b, s);
-    html += '<div class="catrow is-' + st + '">' +
-      '<div class="top"><span class="nm">' + esc(c.name) + '</span>' +
-      '<span class="am num">' + money(s) + ' / ' + money(b) + '</span></div>' +
-      barHTML(s, b) + '</div>';
-  });
-  html += '</div>';
-
-  const watch = state.envelopes
-    .map(function (e) {
-      const b = budgetOf(e.id, m), s = spentOf(e.id, m);
-      return { env: e, b: b, s: s, st: statusOf(b, s) };
-    })
-    .filter(function (x) { return x.st !== 'ok' && (x.b > 0 || x.s > 0); })
-    .sort(function (a, z) { return (z.s - z.b) - (a.s - a.b); });
-
-  if (watch.length) {
-    html += '<div class="section-title"><span>⚠️ ซองที่ต้องระวัง</span></div><div class="card">';
-    watch.forEach(function (x, i) {
-      html += '<div class="row"' + (i === 0 ? ' style="padding-top:0"' : '') + '>' +
-        '<div class="emoji">' + esc(x.env.emoji) + '</div>' +
-        '<div style="min-width:0"><div class="nm">' + esc(x.env.name) + '</div>' +
-        '<div class="sub">' + (x.st === 'over' ? 'เกินงบ ' + money(x.s - x.b) : 'ใช้ไป ' + Math.round(x.s / x.b * 100) + '% ของงบ') + '</div></div>' +
-        '<div class="amt"><span class="chip ' + x.st + '">' + (x.st === 'over' ? 'เกินงบ' : 'ใกล้เต็ม') + '</span></div>' +
-      '</div>';
-    });
-    html += '</div>';
-  }
-
-  html += '<div class="section-title"><span>สินทรัพย์ตามเจ้าของ</span></div><div class="card">';
-  state.owners.forEach(function (o, i) {
-    const v = assetsOfOwner(o.id);
-    const share = assets > 0 ? (v / assets * 100) : 0;
-    html += '<div class="row"' + (i === 0 ? ' style="padding-top:0"' : '') + '>' +
-      '<span class="dot" style="background:' + o.color + '"></span>' +
-      '<div style="min-width:0"><div class="nm">' + esc(o.name) + '</div>' +
-      '<div class="sub">' + share.toFixed(1) + '% ของสินทรัพย์รวม</div></div>' +
-      '<div class="amt num">' + money(v) + '</div></div>';
-  });
-  html += '</div>';
-
+  // ---- ประวัติการนับ ----
   if (state.counts.length) {
     const recent = state.counts.slice(-8).reverse();
     html += '<div class="section-title"><span>ประวัติการนับเงิน</span>' +
       '<span class="muted">' + state.counts.length + ' ครั้ง</span></div><div class="card">';
     recent.forEach(function (c, i) {
-      const prev = state.counts[state.counts.indexOf(c) - 1];
-      const d = prev && typeof prev.netWorth === 'number' && typeof c.netWorth === 'number'
-        ? c.netWorth - prev.netWorth : null;
+      const idx = state.counts.indexOf(c);
+      const prev = state.counts[idx - 1];
+      const cv = typeof c.cash === 'number' ? c.cash : c.assets;
+      const pv = prev ? (typeof prev.cash === 'number' ? prev.cash : prev.assets) : null;
+      const d = pv === null ? null : cv - pv;
       html += '<button class="row" style="width:100%;text-align:left' + (i === 0 ? ';padding-top:0' : '') + '" ' +
         'data-action="open-count" data-id="' + c.id + '">' +
         '<span class="emoji">🧮</span>' +
         '<div style="min-width:0"><div class="nm">' + esc(c.date) + '</div>' +
         '<div class="sub">' + (d === null ? 'ครั้งแรก' : (d >= 0 ? 'เพิ่มขึ้น ' : 'ลดลง ') + money(Math.abs(d))) + '</div></div>' +
-        '<div class="amt num">' + money(c.netWorth) + '</div></button>';
+        '<div class="amt num">' + money(cv) + '</div></button>';
     });
     html += '</div>';
   }
 
-  document.getElementById('view-overview').innerHTML = html;
+  document.getElementById('view-home').innerHTML = html;
 }
 
-function renderEnvelopes() {
-  const m = state.activeMonth;
+/* checklist ของเดือน — ใช้ทั้งบนหน้าแรกและในขั้นที่ 2 ของการนับเงิน
+   compact = true คือเวอร์ชันในชีตนับเงิน (ไม่มีปุ่มเพิ่ม/แก้รายการ) */
+function checklistHTML(m, compact) {
+  const fixed = itemsOfType('fixed'), variable = itemsOfType('variable');
   let html = '';
-  state.categories.forEach(function (c) {
-    const list = state.envelopes.filter(function (e) { return e.categoryId === c.id; });
-    let b = 0, s = 0;
-    list.forEach(function (e) { b += budgetOf(e.id, m); s += spentOf(e.id, m); });
-    html += '<div class="section-title"><span>' + esc(c.name) + ' · ' + list.length + ' ซอง</span>' +
-      '<span class="muted num">' + money(s) + ' / ' + money(b) + '</span></div>';
-    if (!list.length) {
-      html += '<div class="card"><div class="empty">ยังไม่มีซองในหมวดนี้</div></div>';
-      return;
+
+  html += '<div class="section-title"><span>ต้องจ่ายประจำ</span>' +
+    '<span class="muted num">ยังไม่จ่าย ' + money(fixed.reduce(function (a, i) { return a + remainingOf(i.id, m); }, 0)) + '</span></div>' +
+    '<div class="card">';
+  if (!fixed.length) html += '<div class="empty">ยังไม่มีรายการ</div>';
+  fixed.forEach(function (i, idx) {
+    const e = entryOf(i.id, m);
+    const amt = e.paid ? (e.amount || budgetOf(i.id)) : budgetOf(i.id);
+    const linked = account(i.linkedAccountId);
+    const bits = [];
+    if (e.paid && (e.principal || e.interest)) {
+      bits.push('เงินต้น ' + money(e.principal) + ' · ดอกเบี้ย ' + money(e.interest));
+    } else if (linked) {
+      bits.push('ผูกกับ ' + linked.name);
     }
-    list.forEach(function (e) {
-      const eb = budgetOf(e.id, m), es = spentOf(e.id, m), el = eb - es;
-      const st = statusOf(eb, es);
-      html += '<button class="env is-' + st + '" data-action="open-env" data-id="' + e.id + '">' +
-        '<div class="head">' +
-          '<div class="emoji">' + esc(e.emoji) + '</div>' +
-          '<div style="min-width:0">' +
-            '<div class="nm">' + esc(e.name) + '</div>' +
-            '<div class="sub">จ่ายแล้ว ' + money(es) + ' จาก ' + money(eb) + '</div>' +
-          '</div>' +
-          '<div class="right"><div class="left-am num">' + money(el) + '</div><div class="of">คงเหลือ</div></div>' +
-        '</div>' + barHTML(es, eb) + '</button>';
-    });
+    html += '<div class="pick' + (e.paid ? ' on' : '') + '"' + (idx === 0 ? ' style="padding-top:0"' : '') + '>' +
+      '<button class="box" data-action="toggle-item" data-id="' + i.id + '" ' +
+        'aria-pressed="' + e.paid + '" aria-label="ติ๊กว่าจ่าย ' + esc(i.name) + '">✓</button>' +
+      '<span class="emoji">' + esc(i.emoji) + '</span>' +
+      '<span style="min-width:0;flex:1"><span class="nm">' + esc(i.name) + '</span>' +
+      (bits.length ? '<span class="sub">' + esc(bits.join(' · ')) + '</span>' : '') + '</span>' +
+      '<span class="amt num' + (e.paid ? ' done' : '') + '">' + money(amt) + '</span>' +
+      '<button class="icon-btn" data-action="edit-item" data-id="' + i.id + '" ' +
+        'aria-label="แก้ไข ' + esc(i.name) + '">✏️</button>' +
+    '</div>';
   });
-  html += '<div class="btn-row"><button class="btn ghost" data-action="add-env">➕ เพิ่มซองใหม่</button></div>';
-  document.getElementById('view-envelopes').innerHTML = html;
+  html += '</div>';
+
+  html += '<div class="section-title"><span>มีงบไว้ใช้</span>' +
+    '<span class="muted num">เหลือใช้ ' + money(variable.reduce(function (a, i) { return a + remainingOf(i.id, m); }, 0)) + '</span></div>' +
+    '<div class="card">';
+  if (!variable.length) html += '<div class="empty">ยังไม่มีรายการ</div>';
+  variable.forEach(function (i, idx) {
+    const b = budgetOf(i.id), sp = spentOf(i.id, m), rest = b - sp;
+    const st = statusOf(b, sp);
+    html += '<div class="budrow is-' + st + '"' + (idx === 0 ? ' style="margin-top:0"' : '') + '>' +
+      '<div class="top">' +
+        '<span class="emoji">' + esc(i.emoji) + '</span>' +
+        '<span style="min-width:0;flex:1"><span class="nm">' + esc(i.name) + '</span>' +
+        '<span class="sub">ใช้ไป ' + money(sp) + ' จาก ' + money(b) + ' · ' +
+          (rest >= 0 ? 'เหลือให้ใช้อีก ' + money(rest) : 'เกินงบ ' + money(-rest)) + '</span></span>' +
+        '<button class="btn ghost sm spend" data-action="edit-item" data-id="' + i.id + '">ใส่ยอด</button>' +
+      '</div>' + barHTML(sp, b) +
+    '</div>';
+  });
+  html += '</div>';
+
+  if (!compact) {
+    html += '<div class="btn-row"><button class="btn ghost sm" data-action="add-item">➕ เพิ่มรายการ</button></div>';
+  }
+  return html;
 }
 
 function renderAccounts() {
-  const assets = totalAssets(), debts = totalDebts();
+  const assets = totalAssets(), debts = totalDebts(), cash = cashNow();
   let html = '<div class="card hero">' +
-    '<div class="lbl">💰 สินทรัพย์รวม</div>' +
-    '<div class="big num">' + money(assets) + '</div>' +
-    '<div class="hero-split"><div><div class="k">💳 หนี้สินรวม</div><div class="v num">' + money(debts) + '</div></div>' +
-    '<div><div class="k">💎 สุทธิ</div><div class="v num">' + money(assets - debts) + '</div></div></div>' +
+    '<div class="lbl">💵 เงินสดที่ใช้ได้</div>' +
+    '<div class="big num">' + money(cash) + '</div>' +
+    '<div class="hero-split"><div><div class="k">💰 สินทรัพย์รวม</div><div class="v num">' + money(assets) + '</div></div>' +
+    '<div><div class="k">💳 หนี้สินรวม</div><div class="v num">' + money(debts) + '</div></div></div>' +
   '</div>';
 
   state.owners.forEach(function (o) {
@@ -1202,7 +1287,8 @@ function renderAccounts() {
     html += '<div class="section-title"><span style="display:flex;align-items:center;gap:8px">' +
       '<span class="dot" style="background:' + o.color + '"></span>' + esc(o.name) +
       '<button class="icon-btn" style="width:26px;height:26px;font-size:12px" data-action="edit-owner" data-id="' + o.id + '" aria-label="แก้ไข ' + esc(o.name) + '">✏️</button></span>' +
-      '<span class="muted num">' + money(assetsOfOwner(o.id)) + '</span></div><div class="card">';
+      '<span class="muted num">' + money(assetsOfOwner(o.id)) +
+      (debtsOfOwner(o.id) ? ' · หนี้ ' + money(debtsOfOwner(o.id)) : '') + '</span></div><div class="card">';
     if (!list.length) {
       html += '<div class="empty">ยังไม่มีบัญชี</div>';
     } else {
@@ -1215,6 +1301,7 @@ function renderAccounts() {
         if (bankName && bankName !== a.name) tags.push(bankName);
         else if (!b && k.name !== a.name) tags.push(k.name);
         if (a.note) tags.push(a.note);
+        if (!isDebt(a) && a.liquid === false) tags.push('ไม่นับเป็นเงินสด');
         if (a.countable === false) tags.push('ไม่นับตอนนับเงิน');
         if (a.hidden) tags.push('ซ่อน');
 
@@ -1229,7 +1316,8 @@ function renderAccounts() {
           accountBadge(a) +
           '<div style="min-width:0"><div class="nm">' + esc(a.name) + '</div>' +
           (tags.length ? '<div class="sub">' + esc(tags.join(' · ')) + '</div>' : '') + '</div>' +
-          '<div class="amt num">' + money(a.balance) + '</div>' +
+          '<div class="amt num"' + (isDebt(a) ? ' style="color:var(--danger)"' : '') + '>' +
+            (isDebt(a) ? '−' : '') + money(a.balance) + '</div>' +
           '<div class="nudges">' +
             arrow(-1, 'เลื่อนขึ้น', '▲', i === 0) +
             arrow(1, 'เลื่อนลง', '▼', i === list.length - 1) +
@@ -1245,22 +1333,14 @@ function renderAccounts() {
     '<button class="btn ghost sm" data-action="add-owner">👤 เพิ่มเจ้าของ</button>' +
   '</div>';
 
-  html += '<div class="section-title"><span>💳 รายการหนี้สิน</span><span class="muted num">' + money(debts) + '</span></div><div class="card">';
-  if (!state.debts.length) {
-    html += '<div class="empty">ไม่มีหนี้สิน 🎉</div>';
-  } else {
-    state.debts.forEach(function (d, i) {
-      const o = owner(d.ownerId);
-      html += '<div class="row"' + (i === 0 ? ' style="padding-top:0"' : '') + '>' +
-        '<div class="emoji">💳</div>' +
-        '<div style="min-width:0"><div class="nm">' + esc(d.name) + '</div>' +
-        '<div class="sub">' + (o ? esc(o.name) + ' · ' : '') + 'ผ่อน ' + money(d.monthly) + '/เดือน</div></div>' +
-        '<div class="amt num">' + money(d.remaining) + '</div>' +
-        '<button class="icon-btn" data-action="edit-debt" data-id="' + d.id + '" aria-label="แก้ไข ' + esc(d.name) + '">✏️</button>' +
-      '</div>';
-    });
-  }
-  html += '</div><div class="btn-row"><button class="btn ghost sm" data-action="add-debt">➕ เพิ่มหนี้สิน</button></div>';
+  html += '<div class="section-title"><span>สรุป</span></div><div class="card">' +
+    '<div class="kv"><span class="k">เงินสดที่ใช้ได้</span><span class="v num">' + money(cash) + '</span></div>' +
+    '<div class="kv"><span class="k">สินทรัพย์รวม</span><span class="v num">' + money(assets) + '</span></div>' +
+    '<div class="kv"><span class="k">หนี้สินรวม</span><span class="v num" style="color:var(--danger)">' + money(debts) + '</span></div>' +
+    '<div class="kv"><span class="k">สินทรัพย์สุทธิ</span><span class="v num">' + money(assets - debts) + '</span></div>' +
+    '<div class="muted" style="margin-top:10px">หนี้ก้อนใหญ่อย่างหนี้บ้านทำให้ตัวเลขสุทธิไม่บอกอะไรเรื่องเงินใช้จ่ายรายเดือน ' +
+    'หน้าแรกจึงใช้เงินสดเป็นหลัก</div>' +
+  '</div>';
 
   html += '<div class="section-title"><span>ตั้งค่า</span></div><div class="card">' +
     '<div class="muted" style="margin-top:14px">ข้อมูลถูกเก็บไว้ในเครื่องนี้เท่านั้น (localStorage) การล้างข้อมูลเบราว์เซอร์จะทำให้ข้อมูลหาย</div>' +
@@ -1275,8 +1355,7 @@ function render() {
   document.getElementById('monthLabel').innerHTML = esc(monthLabel(state.activeMonth, true)) +
     (isNow ? '<span class="today">เดือนนี้</span>' : '');
 
-  if (activeTab === 'overview') renderOverview();
-  else if (activeTab === 'envelopes') renderEnvelopes();
+  if (activeTab === 'home') renderHome();
   else renderAccounts();
 }
 
@@ -1316,97 +1395,103 @@ function toast(msg) {
   toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2400);
 }
 
-/* ---- ซอง: จ่ายจริง / โยกเงิน / แก้ไข ---- */
-function envSheet(envId, mode) {
-  const env = envelope(envId);
-  if (!env) return;
+/* ---- รายการเดือนนี้: บันทึกที่จ่าย / ตั้งค่ารายการ ---- */
+function itemSheet(itemId, mode) {
+  const it = item(itemId);
+  if (!it) return;
   const m = state.activeMonth;
-  const b = budgetOf(envId, m), s = spentOf(envId, m), l = b - s;
-  const st = statusOf(b, s);
-  mode = mode || 'spend';
+  const fixed = it.type === 'fixed';
+  const e = entryOf(itemId, m);
+  const b = budgetOf(itemId), sp = spentOf(itemId, m);
+  mode = mode || 'record';
+
+  const debtAccounts = state.accounts.filter(isDebt);
+  const linked = account(it.linkedAccountId);
 
   let html = '<div class="sheet-head">' +
-    '<div class="emoji" style="width:46px;height:46px;font-size:22px">' + esc(env.emoji) + '</div>' +
-    '<div style="min-width:0;flex:1"><h2>' + esc(env.name) + '</h2>' +
-    '<div class="sheet-sub">' + esc(category(env.categoryId) ? category(env.categoryId).name : '') + ' · ' + esc(monthLabel(m, true)) + '</div></div>' +
-    '<span class="chip ' + st + '">' + (st === 'over' ? 'เกินงบ' : st === 'warn' ? 'ใกล้เต็ม' : 'ปกติ') + '</span>' +
-  '</div>';
-
-  html += '<div class="card is-' + st + '" style="margin-top:14px;background:var(--surface-2)">' +
-    '<div class="kv"><span class="k">งบเดือนนี้</span><span class="v num">' + money(b) + '</span></div>' +
-    '<div class="kv"><span class="k">จ่ายไปแล้ว</span><span class="v num">' + money(s) + '</span></div>' +
-    '<div class="kv"><span class="k">คงเหลือ</span><span class="v num" style="color:' + (l < 0 ? 'var(--danger)' : 'var(--brand-ink)') + '">' + money(l) + '</span></div>' +
-    '<div style="margin-top:12px">' + barHTML(s, b) + '</div>' +
+    '<div class="emoji" style="width:46px;height:46px;font-size:22px">' + esc(it.emoji) + '</div>' +
+    '<div style="min-width:0;flex:1"><h2>' + esc(it.name) + '</h2>' +
+    '<div class="sheet-sub">' + (fixed ? 'ต้องจ่ายประจำ' : 'มีงบไว้ใช้') + ' · ' + esc(monthLabel(m, true)) + '</div></div>' +
   '</div>';
 
   html += '<div class="seg">' +
-    '<button class="' + (mode === 'spend' ? 'on' : '') + '" data-action="env-mode" data-id="' + envId + '" data-mode="spend">💸 จ่ายจริง</button>' +
-    '<button class="' + (mode === 'move' ? 'on' : '') + '" data-action="env-mode" data-id="' + envId + '" data-mode="move">🔁 โยกเงิน</button>' +
-    '<button class="' + (mode === 'edit' ? 'on' : '') + '" data-action="env-mode" data-id="' + envId + '" data-mode="edit">⚙️ แก้ไข</button>' +
+    '<button class="' + (mode === 'record' ? 'on' : '') + '" data-action="item-mode" data-id="' + itemId + '" data-mode="record">' +
+      (fixed ? '✅ จ่ายแล้ว' : '💸 ใส่ยอดที่ใช้') + '</button>' +
+    '<button class="' + (mode === 'edit' ? 'on' : '') + '" data-action="item-mode" data-id="' + itemId + '" data-mode="edit">⚙️ ตั้งค่ารายการ</button>' +
   '</div>';
 
-  if (mode === 'spend') {
-    html += '<form data-form="spend" data-id="' + envId + '">' +
-      '<label class="field"><span>เดือนนี้จ่ายจริงไปแล้วเท่าไหร่</span>' +
-      '<input class="amount" type="number" name="amount" inputmode="decimal" step="0.01" min="0" value="' + s + '" required data-autofocus></label>' +
-      '<div class="muted" style="margin-top:8px;text-align:center">พิมพ์ยอดรวมของเดือนนี้ทับได้เลย · งบที่ตั้งไว้ ' + esc(money(b)) + '</div>' +
-      '<div class="btn-row"><button type="submit" class="btn">บันทึก</button></div>' +
-    '</form>' +
-    '<div class="muted" style="margin-top:14px">ยอดนี้เป็นข้อมูลสถานะอย่างเดียว ไม่ไปหักยอดบัญชี ' +
-    'ยอดบัญชีอัปเดตตอนกดนับเงินเท่านั้น</div>';
+  if (mode === 'record') {
+    if (fixed) {
+      html += '<div class="card" style="margin-top:14px;background:var(--surface-2)">' +
+        '<div class="switch" style="padding-top:0"><span class="lbl">จ่ายเดือนนี้แล้ว' +
+          '<small>ติ๊กแล้วยอดนี้จะหายจาก "ยังไม่ได้จ่าย"</small></span>' +
+          '<button class="tgl' + (e.paid ? ' on' : '') + '" data-action="toggle-item" data-id="' + itemId + '" ' +
+          'data-stay="1" aria-label="จ่ายแล้ว"></button></div>' +
+      '</div>';
 
-  } else if (mode === 'move') {
-    const others = state.envelopes.filter(function (e) { return e.id !== envId; });
-    html += '<form data-form="move" data-id="' + envId + '">' +
-      '<label class="field"><span>จำนวนเงินที่โยกออกจากซองนี้</span>' +
-      '<input class="amount" type="number" name="amount" inputmode="decimal" step="0.01" min="0.01" max="' + Math.max(0, l) + '" placeholder="0" required data-autofocus></label>' +
-      '<div class="muted" style="margin-top:6px;text-align:center">โยกได้สูงสุด ' + money(Math.max(0, l)) + '</div>' +
-      '<label class="field"><span>โยกไปที่ซอง</span><select name="toId" required>' +
-        '<option value="" disabled selected>เลือกซองปลายทาง…</option>' +
-        state.categories.map(function (c) {
-          const list = others.filter(function (e) { return e.categoryId === c.id; });
-          if (!list.length) return '';
-          return '<optgroup label="' + esc(c.name) + '">' + list.map(function (e) {
-            return '<option value="' + e.id + '">' + esc(e.emoji + ' ' + e.name) + ' — เหลือ ' + money(leftOf(e.id, m)) + '</option>';
-          }).join('') + '</optgroup>';
-        }).join('') +
-      '</select></label>' +
-      '<div class="btn-row"><button type="submit" class="btn">โยกเงิน</button></div>' +
-    '</form>';
+      html += '<form data-form="item-record" data-id="' + itemId + '">' +
+        '<label class="field"><span>จ่ายไปเท่าไหร่</span>' +
+        '<input class="amount" type="number" name="amount" inputmode="decimal" step="0.01" min="0" value="' +
+          (e.amount || b) + '" required data-autofocus></label>' +
+        '<div class="muted" style="margin-top:8px;text-align:center">ยอดที่ตั้งไว้ ' + esc(money(b)) + '</div>';
 
-    const moves = state.transfers.filter(function (t) {
-      return t.month === m && (t.fromEnvelopeId === envId || t.toEnvelopeId === envId);
-    }).reverse();
-    html += '<div class="section-title"><span>ประวัติการโยกเดือนนี้</span></div><div class="hist">';
-    if (!moves.length) html += '<div class="empty">ยังไม่มีการโยกเงินในเดือนนี้</div>';
-    moves.forEach(function (t) {
-      const out = t.fromEnvelopeId === envId;
-      const other = envelope(out ? t.toEnvelopeId : t.fromEnvelopeId);
-      html += '<div class="row"><div style="min-width:0">' +
-        '<div class="nm">' + (out ? '➖ ' : '➕ ') + money(t.amount) + '</div>' +
-        '<div class="sub">' + (out ? 'ไปยัง ' : 'จาก ') + esc(other ? other.name : 'ซองที่ถูกลบ') + ' · ' + esc(t.date) + '</div></div>' +
-        '<button class="del" data-action="del-move" data-id="' + t.id + '" data-env="' + envId + '" aria-label="ยกเลิกการโยก">🗑️</button></div>';
-    });
-    html += '</div>';
+      if (linked || debtAccounts.length) {
+        html += '<div class="section-title"><span>แยกเงินต้น / ดอกเบี้ย</span></div>' +
+          '<div class="btn-grid" style="margin-top:0">' +
+            '<label class="field" style="margin-top:0"><span>เงินต้น</span>' +
+            '<input type="number" name="principal" inputmode="decimal" step="0.01" min="0" value="' + e.principal + '"></label>' +
+            '<label class="field" style="margin-top:0"><span>ดอกเบี้ย</span>' +
+            '<input type="number" name="interest" inputmode="decimal" step="0.01" min="0" value="' + e.interest + '"></label>' +
+          '</div>' +
+          '<div class="muted" style="margin-top:8px">' +
+          (linked ? 'ผูกกับบัญชีหนี้ "' + esc(linked.name) + '" — ' : '') +
+          'ตัวเลขนี้บอกว่าเงินที่จ่ายไปเป็นค่าอะไร ไม่ได้เอาไปหักยอดหนี้ซ้ำ ' +
+          'ยอดหนี้คงเหลือมาจากที่นับในหน้านับเงิน</div>';
+      }
+
+      html += '<div class="btn-row"><button type="submit" class="btn">บันทึก</button></div></form>';
+
+    } else {
+      html += '<div class="card" style="margin-top:14px;background:var(--surface-2)">' +
+        '<div class="kv"><span class="k">งบเดือนนี้</span><span class="v num">' + money(b) + '</span></div>' +
+        '<div class="kv"><span class="k">ใช้ไปแล้ว</span><span class="v num">' + money(sp) + '</span></div>' +
+        '<div class="kv"><span class="k">เหลือให้ใช้อีก</span><span class="v num" style="color:' +
+          (b - sp < 0 ? 'var(--danger)' : 'var(--brand-ink)') + '">' + money(b - sp) + '</span></div>' +
+        '<div style="margin-top:12px">' + barHTML(sp, b) + '</div>' +
+      '</div>';
+
+      html += '<form data-form="item-record" data-id="' + itemId + '">' +
+        '<label class="field"><span>เดือนนี้ใช้ไปแล้วเท่าไหร่</span>' +
+        '<input class="amount" type="number" name="amount" inputmode="decimal" step="0.01" min="0" value="' + sp + '" required data-autofocus></label>' +
+        '<div class="muted" style="margin-top:8px;text-align:center">พิมพ์ยอดรวมของเดือนนี้ทับได้เลย</div>' +
+        '<div class="btn-row"><button type="submit" class="btn">บันทึก</button></div>' +
+      '</form>';
+    }
 
   } else {
-    html += '<form data-form="env-edit" data-id="' + envId + '">' +
-      '<label class="field"><span>อีโมจิ</span><input type="text" name="emoji" maxlength="8" value="' + esc(env.emoji) + '" required></label>' +
-      '<label class="field"><span>ชื่อซอง</span><input type="text" name="name" maxlength="60" value="' + esc(env.name) + '" required></label>' +
-      '<label class="field"><span>งบประมาณต่อเดือน (บาท)</span>' +
-      '<input type="number" name="budget" inputmode="decimal" step="0.01" min="0" value="' + (Number(env.budget) || 0) + '" required></label>' +
-      '<label class="field"><span>หมวดหมู่</span><select name="categoryId">' +
-        state.categories.map(function (c) {
-          return '<option value="' + c.id + '"' + (c.id === env.categoryId ? ' selected' : '') + '>' + esc(c.name) + '</option>';
+    html += '<form data-form="item-edit" data-id="' + itemId + '">' +
+      '<label class="field"><span>อีโมจิ</span><input type="text" name="emoji" maxlength="8" value="' + esc(it.emoji) + '" required></label>' +
+      '<label class="field"><span>ชื่อรายการ</span><input type="text" name="name" maxlength="60" value="' + esc(it.name) + '" required></label>' +
+      '<label class="field"><span>' + (fixed ? 'ยอดที่ต้องจ่ายต่อเดือน' : 'งบต่อเดือน') + ' (บาท)</span>' +
+      '<input type="number" name="budget" inputmode="decimal" step="0.01" min="0" value="' + b + '" required></label>' +
+      '<label class="field"><span>ประเภท</span><select name="type">' +
+        '<option value="fixed"' + (fixed ? ' selected' : '') + '>ต้องจ่ายประจำ — ติ๊กว่าจ่ายแล้วหรือยัง</option>' +
+        '<option value="variable"' + (!fixed ? ' selected' : '') + '>มีงบไว้ใช้ — ดูว่าเหลือให้ใช้อีกเท่าไหร่</option>' +
+      '</select></label>' +
+      '<label class="field"><span>ผูกกับบัญชีหนี้ (ไม่บังคับ)</span><select name="linkedAccountId">' +
+        '<option value="">— ไม่ผูก —</option>' +
+        debtAccounts.map(function (a) {
+          return '<option value="' + a.id + '"' + (a.id === it.linkedAccountId ? ' selected' : '') + '>' +
+            esc(a.name) + ' — คงเหลือ ' + money(a.balance) + '</option>';
         }).join('') +
       '</select></label>' +
       '<label class="field"><span>ผู้รับผิดชอบ</span><select name="ownerId">' +
         state.owners.map(function (o) {
-          return '<option value="' + o.id + '"' + (o.id === env.ownerId ? ' selected' : '') + '>' + esc(o.name) + '</option>';
+          return '<option value="' + o.id + '"' + (o.id === it.ownerId ? ' selected' : '') + '>' + esc(o.name) + '</option>';
         }).join('') +
       '</select></label>' +
       '<div class="btn-grid">' +
-        '<button type="button" class="btn danger" data-action="del-env" data-id="' + envId + '">ลบซองนี้</button>' +
+        '<button type="button" class="btn danger" data-action="del-item" data-id="' + itemId + '">ลบรายการ</button>' +
         '<button type="submit" class="btn">บันทึก</button>' +
       '</div>' +
     '</form>';
@@ -1415,14 +1500,34 @@ function envSheet(envId, mode) {
   openSheet(html);
 }
 
+function addItemSheet() {
+  const html = '<div class="sheet-head"><div style="flex:1"><h2>เพิ่มรายการ</h2>' +
+    '<div class="sheet-sub">รายการที่ต้องจ่ายหรือตั้งงบไว้ในแต่ละเดือน</div></div></div>' +
+    '<form data-form="item-add">' +
+      '<label class="field"><span>อีโมจิ</span><input type="text" name="emoji" maxlength="8" value="💸" required></label>' +
+      '<label class="field"><span>ชื่อรายการ</span><input type="text" name="name" maxlength="60" placeholder="เช่น ค่าไฟ" required data-autofocus></label>' +
+      '<label class="field"><span>ยอด / งบต่อเดือน (บาท)</span>' +
+      '<input type="number" name="budget" inputmode="decimal" step="0.01" min="0" value="0" required></label>' +
+      '<label class="field"><span>ประเภท</span><select name="type">' +
+        '<option value="fixed">ต้องจ่ายประจำ — ติ๊กว่าจ่ายแล้วหรือยัง</option>' +
+        '<option value="variable">มีงบไว้ใช้ — ดูว่าเหลือให้ใช้อีกเท่าไหร่</option>' +
+      '</select></label>' +
+      '<label class="field"><span>ผู้รับผิดชอบ</span><select name="ownerId">' +
+        state.owners.map(function (o) { return '<option value="' + o.id + '">' + esc(o.name) + '</option>'; }).join('') +
+      '</select></label>' +
+      '<div class="btn-row"><button type="submit" class="btn">เพิ่มรายการ</button></div>' +
+    '</form>';
+  openSheet(html);
+}
+
 function accountSheet(accId) {
   const a = accId ? account(accId) : null;
-  const cur = a || { kind: 'bank', bankId: '', emoji: '🏦', name: '', balance: 0, countable: true, hidden: false, color: '', note: '' };
+  const cur = a || { kind: 'bank', bankId: '', emoji: '🏦', name: '', balance: 0, countable: true, liquid: true, hidden: false, color: '', note: '' };
   const preview = accountBadge(cur);
 
   let html = '<div class="sheet-head">' + preview +
     '<div style="flex:1;min-width:0"><h2>' + (a ? 'แก้ไขบัญชี' : 'เพิ่มบัญชี') + '</h2>' +
-    '<div class="sheet-sub">ยอดคงเหลือจะนำไปคิดสินทรัพย์สุทธิ</div></div></div>' +
+    '<div class="sheet-sub">บัญชีประเภทหนี้สินให้ใส่ยอดหนี้คงเหลือ</div></div></div>' +
     '<form data-form="account" data-id="' + (a ? a.id : '') + '">' +
       '<label class="field"><span>ชื่อบัญชี</span><input type="text" name="name" maxlength="60" value="' + esc(cur.name) + '" placeholder="เช่น กสิกรไทย" required ' + (a ? '' : 'data-autofocus') + '></label>' +
       '<label class="field"><span>ยอดคงเหลือ (บาท)</span><input type="number" name="balance" inputmode="decimal" step="0.01" value="' + (Number(cur.balance) || 0) + '" required ' + (a ? 'data-autofocus' : '') + '></label>' +
@@ -1450,6 +1555,9 @@ function accountSheet(accId) {
         '<div class="switch"><span class="lbl">นับบัญชีนี้ตอนนับเงิน<small>ปิดไว้ถ้าไม่อยากถูกถามยอดทุกรอบ</small></span>' +
           '<input type="checkbox" name="countable" ' + (cur.countable !== false ? 'checked' : '') + ' hidden>' +
           '<button type="button" class="tgl' + (cur.countable !== false ? ' on' : '') + '" data-action="toggle-field" data-field="countable" aria-label="นับบัญชีนี้"></button></div>' +
+        '<div class="switch"><span class="lbl">นับเป็นเงินสด<small>เอาไปคิดในตัวเลข "เงินสดตอนนี้" บนหน้าแรก</small></span>' +
+          '<input type="checkbox" name="liquid" ' + (cur.liquid !== false ? 'checked' : '') + ' hidden>' +
+          '<button type="button" class="tgl' + (cur.liquid !== false ? ' on' : '') + '" data-action="toggle-field" data-field="liquid" aria-label="นับเป็นเงินสด"></button></div>' +
         '<div class="switch"><span class="lbl">ซ่อนบัญชีนี้<small>ยังคิดรวมในสินทรัพย์ แต่แสดงแบบจาง</small></span>' +
           '<input type="checkbox" name="hidden" ' + (cur.hidden ? 'checked' : '') + ' hidden>' +
           '<button type="button" class="tgl' + (cur.hidden ? ' on' : '') + '" data-action="toggle-field" data-field="hidden" aria-label="ซ่อนบัญชีนี้"></button></div>' +
@@ -1474,48 +1582,11 @@ function ownerSheet(ownerId) {
   openSheet(html);
 }
 
-function debtSheet(debtId) {
-  const d = debtId ? byId(state.debts, debtId) : null;
-  const html = '<div class="sheet-head"><div style="flex:1"><h2>' + (d ? 'แก้ไขหนี้สิน' : 'เพิ่มหนี้สิน') + '</h2>' +
-    '<div class="sheet-sub">ยอดคงเหลือจะถูกหักจากสินทรัพย์สุทธิ</div></div></div>' +
-    '<form data-form="debt" data-id="' + (d ? d.id : '') + '">' +
-      '<label class="field"><span>ชื่อรายการหนี้</span><input type="text" name="name" maxlength="60" value="' + esc(d ? d.name : '') + '" placeholder="เช่น บัตรเครดิต KBANK" required data-autofocus></label>' +
-      '<label class="field"><span>ยอดหนี้คงเหลือ (บาท)</span><input type="number" name="remaining" inputmode="decimal" step="0.01" min="0" value="' + (d ? Number(d.remaining) || 0 : 0) + '" required></label>' +
-      '<label class="field"><span>ยอดผ่อนต่อเดือน (บาท)</span><input type="number" name="monthly" inputmode="decimal" step="0.01" min="0" value="' + (d ? Number(d.monthly) || 0 : 0) + '" required></label>' +
-      '<label class="field"><span>เจ้าของหนี้</span><select name="ownerId">' +
-        state.owners.map(function (o) {
-          return '<option value="' + o.id + '"' + (d && o.id === d.ownerId ? ' selected' : '') + '>' + esc(o.name) + '</option>';
-        }).join('') +
-      '</select></label>' +
-      (d ? '<div class="btn-grid"><button type="button" class="btn danger" data-action="del-debt" data-id="' + d.id + '">ลบรายการ</button><button type="submit" class="btn">บันทึก</button></div>'
-         : '<div class="btn-row"><button type="submit" class="btn">เพิ่มหนี้สิน</button></div>') +
-    '</form>';
-  openSheet(html);
-}
-
-function addEnvSheet() {
-  const html = '<div class="sheet-head"><div style="flex:1"><h2>เพิ่มซองใหม่</h2>' +
-    '<div class="sheet-sub">ตั้งงบประจำเดือนให้ซองนี้</div></div></div>' +
-    '<form data-form="env-add">' +
-      '<label class="field"><span>อีโมจิ</span><input type="text" name="emoji" maxlength="8" value="✉️" required></label>' +
-      '<label class="field"><span>ชื่อซอง</span><input type="text" name="name" maxlength="60" placeholder="เช่น ค่ากาแฟ" required data-autofocus></label>' +
-      '<label class="field"><span>งบประมาณต่อเดือน (บาท)</span><input type="number" name="budget" inputmode="decimal" step="0.01" min="0" value="0" required></label>' +
-      '<label class="field"><span>หมวดหมู่</span><select name="categoryId">' +
-        state.categories.map(function (c) { return '<option value="' + c.id + '">' + esc(c.name) + '</option>'; }).join('') +
-      '</select></label>' +
-      '<label class="field"><span>ผู้รับผิดชอบ</span><select name="ownerId">' +
-        state.owners.map(function (o) { return '<option value="' + o.id + '">' + esc(o.name) + '</option>'; }).join('') +
-      '</select></label>' +
-      '<div class="btn-row"><button type="submit" class="btn">เพิ่มซอง</button></div>' +
-    '</form>';
-  openSheet(html);
-}
-
 /* ---------------- นับเงิน (หน้าเดียว) ---------------- */
 let countDraft = null;
 
 function startCount() {
-  countDraft = { balances: {}, note: '' };
+  countDraft = { step: 1, balances: {}, note: '' };
   countableAccounts().forEach(function (a) { countDraft.balances[a.id] = Number(a.balance) || 0; });
   countSheet();
 }
@@ -1549,38 +1620,51 @@ function updateCountTally() {
 }
 
 function countSheet() {
+  const step = countDraft.step || 1;
   const list = countableAccounts();
+
   let html = '<div class="sheet-head"><div style="flex:1">' +
     '<h2>🧮 นับเงิน</h2>' +
-    '<div class="sheet-sub">ใส่ยอดคงเหลือจริงของแต่ละบัญชีตอนนี้ แล้วเก็บไว้เป็นภาพ ณ เวลานี้</div>' +
-    '</div></div>' +
-    '<div class="tally" id="countTally">' + countTallyHTML() + '</div>';
+    '<div class="sheet-sub">' +
+      (step === 1 ? 'ขั้นที่ 1 — ยอดคงเหลือจริงของแต่ละบัญชีตอนนี้'
+                  : 'ขั้นที่ 2 — จ่ายอะไรไปแล้วบ้างเดือนนี้') +
+    '</div></div></div>' +
+    '<div class="steps"><i class="on"></i><i class="' + (step >= 2 ? 'on' : '') + '"></i></div>';
 
-  if (!list.length) {
-    html += '<div class="empty">ยังไม่มีบัญชีที่ตั้งให้นับ<br>' +
-      '<span class="muted">เปิดสวิตช์ "นับบัญชีนี้" ได้ที่หน้าบัญชี</span></div>';
-  }
-  list.forEach(function (a) {
-    const old = Number(a.balance) || 0;
-    const nv = countDraft.balances[a.id];
-    const now = (nv === '' || nv === undefined || nv === null) ? old : Number(nv) || 0;
-    const d = now - old;
-    html += '<div class="cnt-row">' + accountBadge(a) +
-      '<div style="min-width:0"><div class="nm">' + esc(a.name) + '</div>' +
-      '<div class="was">เดิม ' + money(old) + '</div></div>' +
-      '<div style="margin-left:auto;flex:none">' +
-        '<input type="number" inputmode="decimal" step="0.01" data-acc="' + a.id + '" value="' + now + '" aria-label="ยอดของ ' + esc(a.name) + '">' +
-        '<div class="delta ' + (d < 0 ? 'down' : d > 0 ? 'up' : '') + '">' + (d === 0 ? 'เท่าเดิม' : (d > 0 ? '+' : '') + money(d)) + '</div>' +
-      '</div>' +
-    '</div>';
-  });
-
-  html += '<label class="field"><span>โน้ต (ไม่บังคับ)</span>' +
-    '<input type="text" data-count-note="1" maxlength="80" value="' + esc(countDraft.note || '') + '" placeholder="เช่น นับหลังเงินเดือนออก"></label>' +
-    '<div class="btn-grid">' +
+  if (step === 1) {
+    html += '<div class="tally" id="countTally">' + countTallyHTML() + '</div>';
+    if (!list.length) {
+      html += '<div class="empty">ยังไม่มีบัญชีที่ตั้งให้นับ<br>' +
+        '<span class="muted">เปิดสวิตช์ "นับบัญชีนี้" ได้ที่หน้าบัญชี</span></div>';
+    }
+    list.forEach(function (a) {
+      const old = Number(a.balance) || 0;
+      const nv = countDraft.balances[a.id];
+      const now = (nv === '' || nv === undefined || nv === null) ? old : Number(nv) || 0;
+      const d = now - old;
+      html += '<div class="cnt-row">' + accountBadge(a) +
+        '<div style="min-width:0"><div class="nm">' + esc(a.name) + '</div>' +
+        '<div class="was">' + (isDebt(a) ? 'ยอดหนี้เดิม ' : 'เดิม ') + money(old) + '</div></div>' +
+        '<div style="margin-left:auto;flex:none">' +
+          '<input type="number" inputmode="decimal" step="0.01" data-acc="' + a.id + '" value="' + now + '" aria-label="ยอดของ ' + esc(a.name) + '">' +
+          '<div class="delta ' + (d < 0 ? 'down' : d > 0 ? 'up' : '') + '">' + (d === 0 ? 'เท่าเดิม' : (d > 0 ? '+' : '') + money(d)) + '</div>' +
+        '</div>' +
+      '</div>';
+    });
+    html += '<div class="btn-grid">' +
       '<button class="btn ghost" data-action="close-sheet">ยกเลิก</button>' +
-      '<button class="btn" data-action="count-save">บันทึก</button>' +
+      '<button class="btn" data-action="count-step" data-step="2">ถัดไป</button>' +
     '</div>';
+
+  } else {
+    html += checklistHTML(state.activeMonth, true);
+    html += '<label class="field"><span>โน้ต (ไม่บังคับ)</span>' +
+      '<input type="text" data-count-note="1" maxlength="80" value="' + esc(countDraft.note || '') + '" placeholder="เช่น นับหลังเงินเดือนออก"></label>' +
+      '<div class="btn-grid">' +
+        '<button class="btn ghost" data-action="count-step" data-step="1">ย้อนกลับ</button>' +
+        '<button class="btn" data-action="count-save">บันทึก</button>' +
+      '</div>';
+  }
 
   openSheet(html);
 }
@@ -1657,28 +1741,50 @@ document.addEventListener('click', function (ev) {
   }
 
   if (act === 'close-sheet') { closeSheet(); return; }
-  if (act === 'open-env') { envSheet(id, 'spend'); return; }
-  if (act === 'env-mode') { envSheet(id, el.dataset.mode); return; }
-  if (act === 'add-env') { addEnvSheet(); return; }
+  if (act === 'edit-item') { itemSheet(id, 'record'); return; }
+  if (act === 'item-mode') { itemSheet(id, el.dataset.mode); return; }
+  if (act === 'add-item') { addItemSheet(); return; }
+
+  if (act === 'toggle-item') {
+    toggleItemPaid(id, state.activeMonth);
+    if (el.dataset.stay) itemSheet(id, 'record');
+    else if (countDraft) countSheet();
+    render();
+    return;
+  }
+
+  if (act === 'del-item') {
+    confirmSheet('ลบรายการนี้?', 'ประวัติที่บันทึกไว้ของรายการนี้จะถูกลบด้วย',
+      'data-action="del-item-confirm" data-id="' + id + '"');
+    return;
+  }
+  if (act === 'del-item-confirm') {
+    state.items = state.items.filter(function (i) { return i.id !== id; });
+    delete state.entries[id];
+    save(); closeSheet(); render(); toast('ลบรายการแล้ว');
+    return;
+  }
   if (act === 'add-account') { accountSheet(null); return; }
   if (act === 'edit-account') { accountSheet(id); return; }
   if (act === 'add-owner') { ownerSheet(null); return; }
   if (act === 'edit-owner') { ownerSheet(id); return; }
-  if (act === 'add-debt') { debtSheet(null); return; }
-  if (act === 'edit-debt') { debtSheet(id); return; }
 
-  if (act === 'nw-view') { nwTable = !nwTable; renderOverview(); return; }
+  if (act === 'cash-view') { cashTable = !cashTable; renderHome(); return; }
 
   if (act === 'start-count') { startCount(); return; }
   if (act === 'open-count') { countDetailSheet(id); return; }
+
+  if (act === 'count-step') {
+    countDraft.step = parseInt(el.dataset.step, 10);
+    countSheet();
+    return;
+  }
 
   if (act === 'count-save') {
     const res = saveCount(countDraft);
     countDraft = null;
     closeSheet(); render();
-    toast(res.diff === 0
-      ? 'บันทึกแล้ว · สินทรัพย์สุทธิ ' + money(res.netWorth)
-      : 'บันทึกแล้ว · ' + (res.diff > 0 ? 'เพิ่มขึ้น ' : 'ลดลง ') + money(Math.abs(res.diff)));
+    toast('บันทึกแล้ว · เงินสด ' + money(res.cash));
     return;
   }
 
@@ -1725,27 +1831,6 @@ document.addEventListener('click', function (ev) {
     return;
   }
 
-  if (act === 'del-move') {
-    const i = state.transfers.findIndex(function (t) { return t.id === id; });
-    if (i >= 0) { state.transfers.splice(i, 1); save(); }
-    envSheet(el.dataset.env, 'move');
-    render();
-    toast('ยกเลิกการโยกแล้ว');
-    return;
-  }
-
-  if (act === 'del-env') {
-    confirmSheet('ลบซองนี้?', 'ยอดจ่ายจริงและการโยกเงินของซองนี้จะถูกลบด้วย', 'data-action="del-env-confirm" data-id="' + id + '"');
-    return;
-  }
-  if (act === 'del-env-confirm') {
-    state.envelopes = state.envelopes.filter(function (e) { return e.id !== id; });
-    state.transfers = state.transfers.filter(function (t) { return t.fromEnvelopeId !== id && t.toEnvelopeId !== id; });
-    delete state.actuals[id];
-    save(); closeSheet(); render(); toast('ลบซองแล้ว');
-    return;
-  }
-
   if (act === 'del-account') {
     confirmSheet('ลบบัญชีนี้?', 'ยอดคงเหลือจะหายจากสินทรัพย์รวม', 'data-action="del-account-confirm" data-id="' + id + '"');
     return;
@@ -1753,16 +1838,6 @@ document.addEventListener('click', function (ev) {
   if (act === 'del-account-confirm') {
     state.accounts = state.accounts.filter(function (a) { return a.id !== id; });
     save(); closeSheet(); render(); toast('ลบบัญชีแล้ว');
-    return;
-  }
-
-  if (act === 'del-debt') {
-    confirmSheet('ลบรายการหนี้นี้?', 'ยอดหนี้จะหายจากสินทรัพย์สุทธิ', 'data-action="del-debt-confirm" data-id="' + id + '"');
-    return;
-  }
-  if (act === 'del-debt-confirm') {
-    state.debts = state.debts.filter(function (d) { return d.id !== id; });
-    save(); closeSheet(); render(); toast('ลบรายการหนี้แล้ว');
     return;
   }
 
@@ -1808,45 +1883,40 @@ document.addEventListener('submit', function (ev) {
   const fd = new FormData(form);
   const num = function (k) { return Math.round((parseFloat(fd.get(k)) || 0) * 100) / 100; };
 
-  if (kind === 'spend') {
+  if (kind === 'item-record') {
+    const it = item(id);
+    if (!it) return;
     const amount = num('amount');
     if (amount < 0) { toast('ยอดต้องไม่ติดลบ'); return; }
-    setActual(id, state.activeMonth, amount);
+    if (it.type === 'fixed') {
+      recordItem(id, state.activeMonth, {
+        paid: true, amount: amount, principal: num('principal'), interest: num('interest')
+      });
+      toast(it.name + ' · จ่ายแล้ว ' + money(amount));
+    } else {
+      recordItem(id, state.activeMonth, { amount: amount });
+      toast(it.name + ' · ใช้ไป ' + money(amount));
+    }
     closeSheet(); render();
-    const env = envelope(id);
-    toast((env ? env.name + ' · ' : '') + 'จ่ายจริง ' + money(amount));
     return;
   }
 
-  if (kind === 'move') {
-    const amount = num('amount');
-    const toId = fd.get('toId');
-    const available = leftOf(id, state.activeMonth);
-    if (amount <= 0) { toast('ใส่จำนวนเงินมากกว่า 0'); return; }
-    if (!toId) { toast('เลือกซองปลายทาง'); return; }
-    if (amount > available) { toast('โยกได้สูงสุด ' + money(Math.max(0, available))); return; }
-    moveMoney(id, toId, amount);
-    const to = envelope(toId);
-    closeSheet(); render();
-    toast('โยก ' + money(amount) + ' ไป ' + (to ? to.name : ''));
-    return;
-  }
-
-  if (kind === 'env-edit' || kind === 'env-add') {
+  if (kind === 'item-edit' || kind === 'item-add') {
     const data = {
-      emoji: (fd.get('emoji') || '✉️').toString().trim() || '✉️',
+      emoji: (fd.get('emoji') || '💸').toString().trim() || '💸',
       name: (fd.get('name') || '').toString().trim(),
       budget: num('budget'),
-      categoryId: fd.get('categoryId'),
-      ownerId: fd.get('ownerId')
+      type: fd.get('type') === 'fixed' ? 'fixed' : 'variable',
+      ownerId: fd.get('ownerId'),
+      linkedAccountId: (fd.get('linkedAccountId') || '').toString()
     };
-    if (!data.name) { toast('ใส่ชื่อซอง'); return; }
-    if (kind === 'env-add') {
-      state.envelopes.push(Object.assign({ id: uid('e'), dueDay: 0 }, data));
-      toast('เพิ่มซอง “' + data.name + '” แล้ว');
+    if (!data.name) { toast('ใส่ชื่อรายการ'); return; }
+    if (kind === 'item-add') {
+      state.items.push(Object.assign({ id: uid('i') }, data));
+      toast('เพิ่ม "' + data.name + '" แล้ว');
     } else {
-      Object.assign(envelope(id), data);
-      toast('บันทึกการแก้ไขแล้ว');
+      Object.assign(item(id), data);
+      toast('บันทึกแล้ว');
     }
     save(); closeSheet(); render();
     return;
@@ -1865,6 +1935,7 @@ document.addEventListener('submit', function (ev) {
       ownerId: fd.get('ownerId'),
       note: (fd.get('note') || '').toString().trim(),
       countable: fd.get('countable') === 'on',
+      liquid: fd.get('liquid') === 'on',
       hidden: fd.get('hidden') === 'on'
     };
     if (!data.name) { toast('ใส่ชื่อบัญชี'); return; }
@@ -1888,19 +1959,19 @@ document.addEventListener('submit', function (ev) {
     return;
   }
 
-  if (kind === 'debt') {
+  if (kind === 'owner') {
+    const color = (fd.get('color') || '').toString().trim();
     const data = {
       name: (fd.get('name') || '').toString().trim(),
-      remaining: num('remaining'),
-      monthly: num('monthly'),
-      ownerId: fd.get('ownerId')
+      color: /^#[0-9a-fA-F]{3,8}$/.test(color) ? color : '#10b981'
     };
-    if (!data.name) { toast('ใส่ชื่อรายการหนี้'); return; }
-    if (id) { Object.assign(byId(state.debts, id), data); toast('บันทึกแล้ว'); }
-    else { state.debts.push(Object.assign({ id: uid('d') }, data)); toast('เพิ่มรายการหนี้แล้ว'); }
+    if (!data.name) { toast('ใส่ชื่อเจ้าของ'); return; }
+    if (id) { Object.assign(owner(id), data); toast('บันทึกแล้ว'); }
+    else { state.owners.push(Object.assign({ id: uid('o') }, data)); toast('เพิ่มเจ้าของแล้ว'); }
     save(); closeSheet(); render();
     return;
   }
+
 });
 
 document.addEventListener('keydown', function (ev) {
