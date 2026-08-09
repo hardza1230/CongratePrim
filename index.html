@@ -175,7 +175,7 @@ main {
 .tabbar {
   position: fixed; bottom: 0; left: 0; right: 0; z-index: 40;
   max-width: var(--app-w); margin: 0 auto;
-  display: grid; grid-template-columns: repeat(5, 1fr);
+  display: grid; grid-template-columns: repeat(3, 1fr);
   background: color-mix(in srgb, var(--surface) 92%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
@@ -318,44 +318,6 @@ main {
 }
 .owner-head .nm { font-weight: 650; font-size: 14.5px; display: flex; align-items: center; gap: 8px; }
 .dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
-
-/* ---------- bills table ---------- */
-.table-wrap {
-  overflow-x: auto; -webkit-overflow-scrolling: touch;
-  border: 1px solid var(--line); border-radius: var(--r);
-  background: var(--surface); box-shadow: var(--shadow);
-}
-table.bills { border-collapse: separate; border-spacing: 0; width: max-content; min-width: 100%; }
-table.bills th, table.bills td { padding: 0; }
-table.bills thead th {
-  position: sticky; top: 0; z-index: 2;
-  background: var(--surface-2);
-  font-size: 11px; font-weight: 650; color: var(--text-2);
-  padding: 9px 0; width: 46px; text-align: center;
-  border-bottom: 1px solid var(--line);
-}
-table.bills th.rowhead, table.bills td.rowhead {
-  position: sticky; left: 0; z-index: 3;
-  background: var(--surface); width: 148px; min-width: 148px; max-width: 148px;
-  text-align: left; padding: 8px 10px;
-  border-right: 1px solid var(--line);
-}
-table.bills thead th.rowhead { z-index: 4; background: var(--surface-2); }
-table.bills td.rowhead .nm { font-size: 12.5px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
-table.bills td.rowhead .am { font-size: 11px; color: var(--text-3); }
-table.bills tbody tr + tr td { border-top: 1px solid var(--line); }
-table.bills th.now, table.bills td.now { background: var(--brand-soft); }
-table.bills td.now.rowhead { background: var(--brand-soft); }
-.tick {
-  width: 100%; height: 42px; display: grid; place-items: center;
-  font-size: 15px; color: var(--text-3);
-  transition: transform .12s;
-}
-.tick:active { transform: scale(.85); }
-.tick.on { color: var(--brand); }
-tfoot td { border-top: 1px solid var(--line) !important; background: var(--surface-2); }
-tfoot .sum { font-size: 10.5px; text-align: center; padding: 8px 2px; color: var(--text-2); font-weight: 600; }
-tfoot td.rowhead { background: var(--surface-2); font-size: 12px; font-weight: 650; }
 
 /* ---------- forms ---------- */
 label.field { display: block; margin-top: 14px; }
@@ -523,31 +485,24 @@ input.amount { font-size: 26px; font-weight: 700; text-align: center; padding: 1
 .hist .row .del:active { background: var(--danger-soft); color: var(--danger); }
 .empty { text-align: center; color: var(--text-3); font-size: 13px; padding: 22px 10px; }
 
-/* ---------- charts ----------
-   สีชุด categorical มาจาก dataviz palette slot 1–3 (blue / orange / aqua)
-   ตรวจผ่าน validate_palette.js ทั้งสองโหมดกับพื้นหลังจริงของแอป
-   (light #ffffff, dark #141d1a) — aqua บนพื้นสว่างต่ำกว่า 3:1 จึงต้องมี
-   ป้ายกำกับค่าให้เห็นเสมอ ซึ่งกราฟทุกตัวในนี้ทำอยู่แล้ว */
+/* ---------- กราฟ net worth ----------
+   ชุดข้อมูลเดียว ใช้สี slot 1 ของ palette ที่ตรวจผ่าน validator
+   กับพื้นหลังจริงของแอปทั้งสองโหมด (light #ffffff, dark #141d1a)
+   ค่าอ่านได้จากป้ายกำกับและมุมมองตัวเลข ไม่ต้องพึ่งสี */
 :root {
   --s1: #2a78d6;
-  --s2: #eb6834;
-  --s3: #1baf7a;
   --grid: #e6ebe9;
   --axis: #c8d2ce;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --s1: #3987e5;
-    --s2: #d95926;
-    --s3: #199e70;
     --grid: #222e29;
     --axis: #33413b;
   }
 }
 :root[data-theme="dark"] {
   --s1: #3987e5;
-  --s2: #d95926;
-  --s3: #199e70;
   --grid: #222e29;
   --axis: #33413b;
 }
@@ -557,41 +512,8 @@ input.amount { font-size: 26px; font-weight: 700; text-align: center; padding: 1
 .chart .axisline { stroke: var(--axis); stroke-width: 1; }
 .chart .tick { font-size: 9px; fill: var(--text-3); font-variant-numeric: tabular-nums; }
 .chart .vlabel { font-size: 9.5px; font-weight: 700; fill: var(--text-2); font-variant-numeric: tabular-nums; }
-.chart .refline { stroke: var(--axis); stroke-width: 1; }
-.chart .reflabel { font-size: 9px; fill: var(--text-3); }
 .chart .dot { stroke: var(--surface); stroke-width: 2; }
 .chart .hit { fill: transparent; cursor: pointer; }
-
-.legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 12px; }
-.legend span { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); }
-.legend i { width: 10px; height: 10px; border-radius: 3px; flex: none; }
-
-.range { display: flex; gap: 6px; background: var(--surface-2); border-radius: 14px; padding: 4px; margin-bottom: 14px; }
-.range button {
-  flex: 1; padding: 9px 4px; border-radius: 11px;
-  font-size: 13px; font-weight: 600; color: var(--text-2);
-  transition: background .18s, color .18s;
-}
-.range button.on { background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
-
-.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.tile {
-  background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--r); box-shadow: var(--shadow); padding: 13px 14px;
-}
-.tile .k { font-size: 11.5px; color: var(--text-3); }
-.tile .v { font-size: 21px; font-weight: 700; margin-top: 2px; letter-spacing: -.02em; }
-.tile .d { font-size: 11px; margin-top: 1px; color: var(--text-3); }
-
-.meter { height: 10px; border-radius: 999px; background: var(--surface-3); overflow: hidden; margin-top: 10px; }
-.meter > i { display: block; height: 100%; border-radius: 999px; background: var(--s1); }
-
-.dtable { width: 100%; border-collapse: collapse; font-size: 12.5px; }
-.dtable th, .dtable td { padding: 7px 4px; text-align: right; }
-.dtable th:first-child, .dtable td:first-child { text-align: left; }
-.dtable thead th { color: var(--text-3); font-weight: 600; border-bottom: 1px solid var(--line); }
-.dtable tbody tr + tr td { border-top: 1px solid var(--line); }
-.dtable td { font-variant-numeric: tabular-nums; }
 
 .tipbox {
   position: fixed; z-index: 45; pointer-events: none;
@@ -644,17 +566,13 @@ input.amount { font-size: 26px; font-weight: 700; text-align: center; padding: 1
   <main>
     <section class="view active" id="view-overview"></section>
     <section class="view" id="view-envelopes"></section>
-    <section class="view" id="view-bills"></section>
     <section class="view" id="view-accounts"></section>
-    <section class="view" id="view-stats"></section>
   </main>
 
   <nav class="tabbar" role="tablist">
     <button role="tab" aria-selected="true" data-action="tab" data-tab="overview"><span class="ic">📊</span>ภาพรวม</button>
     <button role="tab" aria-selected="false" data-action="tab" data-tab="envelopes"><span class="ic">✉️</span>ซอง</button>
-    <button role="tab" aria-selected="false" data-action="tab" data-tab="bills"><span class="ic">🗓️</span>บิล</button>
     <button role="tab" aria-selected="false" data-action="tab" data-tab="accounts"><span class="ic">🏦</span>บัญชี</button>
-    <button role="tab" aria-selected="false" data-action="tab" data-tab="stats"><span class="ic">📈</span>สถิติ</button>
   </nav>
 </div>
 
@@ -671,8 +589,6 @@ input.amount { font-size: 26px; font-weight: 700; text-align: center; padding: 1
    ข้อมูลเริ่มต้น — ถอดมาจาก Google Sheet วางแผนการเงิน
    สินทรัพย์รวม ฿128,491 · หนี้สิน ฿0 · งบประมาณรวม ฿52,369
    ========================================================================= */
-const SEED_YEAR = 2026;
-
 /* ธนาคารและกระเป๋าเงินไทย — สีเป็นค่าประมาณของสีแบรนด์ ไม่ใช่ค่าสีทางการ
    ปรับเองได้ทุกบัญชีผ่านช่อง "สีเอง" ในหน้าแก้ไขบัญชี */
 const BANKS = [
@@ -706,9 +622,8 @@ const KINDS = [
 
 function seed() {
   return {
-    schema: 2,
+    schema: 3,
     activeMonth: monthKey(new Date()),
-    miscEnvelopeId: 'e18',
     owners: [
       { id: 'o1', name: 'จ๋า', color: '#ec4899' },
       { id: 'o2', name: 'ฮาร์ท', color: '#3b82f6' },
@@ -736,43 +651,30 @@ function seed() {
       { id: 'c3', name: 'รับปริญญา', color: '#f59e0b' }
     ],
     envelopes: [
-      { id: 'e1',  categoryId: 'c1', ownerId: 'o2', emoji: '🏠', name: 'ค่าบ้าน',                 budget: 15600, dueDay: 0, recurring: true },
-      { id: 'e2',  categoryId: 'c1', ownerId: 'o2', emoji: '🚗', name: 'ค่ารถ',                   budget: 7924,  dueDay: 0, recurring: true },
-      { id: 'e3',  categoryId: 'c1', ownerId: 'o2', emoji: '🛡️', name: 'ค่าประกันรถ',            budget: 2044,  dueDay: 0, recurring: true },
-      { id: 'e4',  categoryId: 'c1', ownerId: 'o2', emoji: '🏢', name: 'ค่าหอ',                   budget: 4500,  dueDay: 0, recurring: true },
-      { id: 'e5',  categoryId: 'c1', ownerId: 'o2', emoji: '👨‍👩‍👧‍👦', name: 'ให้พ่อ+แม่',      budget: 3000,  dueDay: 0, recurring: true },
-      { id: 'e6',  categoryId: 'c1', ownerId: 'o2', emoji: '📱', name: 'OPPO Find X9',            budget: 2699,  dueDay: 0, recurring: true },
-      { id: 'e7',  categoryId: 'c1', ownerId: 'o2', emoji: '📞', name: 'ค่าโทรศัพท์',             budget: 934,   dueDay: 0, recurring: true },
-      { id: 'e8',  categoryId: 'c1', ownerId: 'o2', emoji: '🌐', name: 'อินเทอร์เน็ต',            budget: 535,   dueDay: 0, recurring: true },
-      { id: 'e9',  categoryId: 'c1', ownerId: 'o2', emoji: '🎬', name: 'Netflix',                 budget: 105,   dueDay: 0, recurring: true },
-      { id: 'e10', categoryId: 'c1', ownerId: 'o2', emoji: '▶️', name: 'Youtube Premium',         budget: 78,    dueDay: 0, recurring: true },
-      { id: 'e11', categoryId: 'c2', ownerId: 'o2', emoji: '⛽', name: 'ค่าน้ำมัน',               budget: 3000,  dueDay: 0, recurring: false },
-      { id: 'e12', categoryId: 'c2', ownerId: 'o2', emoji: '🍲', name: 'ค่าอาหาร',                budget: 7350,  dueDay: 0, recurring: false },
-      { id: 'e13', categoryId: 'c2', ownerId: 'o2', emoji: '🏪', name: '7-Eleven',                budget: 2100,  dueDay: 0, recurring: false },
-      { id: 'e14', categoryId: 'c2', ownerId: 'o2', emoji: '🛒', name: 'Lotus',                   budget: 2500,  dueDay: 0, recurring: false },
-      { id: 'e15', categoryId: 'c2', ownerId: 'o2', emoji: '🛍️', name: 'Tiktok / ช้อปปิ้งออนไลน์', budget: 0,   dueDay: 0, recurring: false },
-      { id: 'e16', categoryId: 'c3', ownerId: 'o2', emoji: '🚌', name: 'ค่ารถ / ค่าเดินทาง',      budget: 0,     dueDay: 0, recurring: false },
-      { id: 'e17', categoryId: 'c3', ownerId: 'o2', emoji: '🍲', name: 'ค่าอาหาร',                budget: 0,     dueDay: 0, recurring: false },
-      // ปลายทางของเงินที่หายไปตอนนับแต่ไม่ได้ติ๊กว่าจ่ายอะไร
-      { id: 'e18', categoryId: 'c2', ownerId: 'o2', emoji: '🧾', name: 'จิปาถะ (ไม่ได้ระบุ)',      budget: 0,     dueDay: 0, recurring: false }
+      { id: 'e1',  categoryId: 'c1', ownerId: 'o2', emoji: '🏠', name: 'ค่าบ้าน',                 budget: 15600 },
+      { id: 'e2',  categoryId: 'c1', ownerId: 'o2', emoji: '🚗', name: 'ค่ารถ',                   budget: 7924 },
+      { id: 'e3',  categoryId: 'c1', ownerId: 'o2', emoji: '🛡️', name: 'ค่าประกันรถ',            budget: 2044 },
+      { id: 'e4',  categoryId: 'c1', ownerId: 'o2', emoji: '🏢', name: 'ค่าหอ',                   budget: 4500 },
+      { id: 'e5',  categoryId: 'c1', ownerId: 'o2', emoji: '👨‍👩‍👧‍👦', name: 'ให้พ่อ+แม่',      budget: 3000 },
+      { id: 'e6',  categoryId: 'c1', ownerId: 'o2', emoji: '📱', name: 'OPPO Find X9',            budget: 2699 },
+      { id: 'e7',  categoryId: 'c1', ownerId: 'o2', emoji: '📞', name: 'ค่าโทรศัพท์',             budget: 934 },
+      { id: 'e8',  categoryId: 'c1', ownerId: 'o2', emoji: '🌐', name: 'อินเทอร์เน็ต',            budget: 535 },
+      { id: 'e9',  categoryId: 'c1', ownerId: 'o2', emoji: '🎬', name: 'Netflix',                 budget: 105 },
+      { id: 'e10', categoryId: 'c1', ownerId: 'o2', emoji: '▶️', name: 'Youtube Premium',         budget: 78 },
+      { id: 'e11', categoryId: 'c2', ownerId: 'o2', emoji: '⛽', name: 'ค่าน้ำมัน',               budget: 3000 },
+      { id: 'e12', categoryId: 'c2', ownerId: 'o2', emoji: '🍲', name: 'ค่าอาหาร',                budget: 7350 },
+      { id: 'e13', categoryId: 'c2', ownerId: 'o2', emoji: '🏪', name: '7-Eleven',                budget: 2100 },
+      { id: 'e14', categoryId: 'c2', ownerId: 'o2', emoji: '🛒', name: 'Lotus',                   budget: 2500 },
+      { id: 'e15', categoryId: 'c2', ownerId: 'o2', emoji: '🛍️', name: 'Tiktok / ช้อปปิ้งออนไลน์', budget: 0 },
+      { id: 'e16', categoryId: 'c3', ownerId: 'o2', emoji: '🚌', name: 'ค่ารถ / ค่าเดินทาง',      budget: 0 },
+      { id: 'e17', categoryId: 'c3', ownerId: 'o2', emoji: '🍲', name: 'ค่าอาหาร',                budget: 0 }
     ],
-    txns: [],
+    // จ่ายจริงของแต่ละซองแยกตามเดือน — เป็นข้อมูลสถานะล้วน ๆ ไม่ผูกกับยอดบัญชี
+    actuals: {},
     transfers: [],
     counts: [],
-    // ตามชีต: รายการจ่ายประจำจ่ายแล้ว ม.ค.–มิ.ย. ปี 2026
-    bills: seedBills(),
     debts: []
   };
-}
-
-function seedBills() {
-  const bills = {};
-  const recurring = ['e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7', 'e8', 'e9', 'e10'];
-  recurring.forEach(function (id) {
-    bills[id] = {};
-    for (let m = 1; m <= 6; m++) bills[id][SEED_YEAR + '-' + pad(m)] = true;
-  });
-  return bills;
 }
 
 /* ========================= helpers ========================= */
@@ -818,7 +720,7 @@ function load() {
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
     if (!parsed || !Array.isArray(parsed.envelopes) || !(parsed.schema >= 1)) return seed();
-    const wasOld = parsed.schema !== 2;
+    const wasOld = parsed.schema !== 3;
     const s = migrate(parsed);
     // เขียนผลการ migrate กลับทันที ไม่ต้องรอให้ผู้ใช้แตะอะไรก่อน
     // (ยังเรียก save() ไม่ได้ เพราะตัวแปร state ยังไม่ถูกกำหนดค่าตอนนี้)
@@ -831,15 +733,29 @@ function load() {
 
 // อัปข้อมูลเก่าในเครื่องให้เข้ากับสคีมาใหม่ โดยไม่ทิ้งของที่ผู้ใช้กรอกไว้แล้ว
 function migrate(s) {
-  s.txns = s.txns || [];
   s.transfers = s.transfers || [];
-  s.bills = s.bills || {};
   s.debts = s.debts || [];
   s.counts = s.counts || [];
   s.owners = s.owners || [];
   s.categories = s.categories || [];
   s.accounts = s.accounts || [];
+  s.actuals = s.actuals || {};
   s.activeMonth = s.activeMonth || monthKey(new Date());
+
+  // schema 1–2 เก็บรายจ่ายเป็นรายการย่อย (txns) — ยุบเป็นยอดจ่ายจริงต่อซองต่อเดือน
+  if (Array.isArray(s.txns)) {
+    s.txns.forEach(function (t) {
+      if (!t || !t.envelopeId || !t.month) return;
+      const per = s.actuals[t.envelopeId] || (s.actuals[t.envelopeId] = {});
+      per[t.month] = Math.round(((per[t.month] || 0) + (Number(t.amount) || 0)) * 100) / 100;
+    });
+    delete s.txns;
+  }
+
+  // ตารางบิลและซองรับส่วนต่างถูกเลิกใช้แล้ว
+  delete s.bills;
+  delete s.miscEnvelopeId;
+  s.envelopes.forEach(function (e) { delete e.recurring; delete e.dueDay; });
 
   s.accounts.forEach(function (a) {
     if (a.kind === undefined) a.kind = guessKind(a);
@@ -851,20 +767,7 @@ function migrate(s) {
     a.balance = Number(a.balance) || 0;
   });
 
-  // ต้องมีซองปลายทางของส่วนต่างเสมอ
-  if (!s.miscEnvelopeId || !s.envelopes.some(function (e) { return e.id === s.miscEnvelopeId; })) {
-    let misc = s.envelopes.find(function (e) { return e.id === 'e18'; });
-    if (!misc) {
-      misc = {
-        id: uid('e'), categoryId: (s.categories[0] || {}).id, ownerId: (s.owners[0] || {}).id,
-        emoji: '🧾', name: 'จิปาถะ (ไม่ได้ระบุ)', budget: 0, dueDay: 0, recurring: false
-      };
-      s.envelopes.push(misc);
-    }
-    s.miscEnvelopeId = misc.id;
-  }
-
-  s.schema = 2;
+  s.schema = 3;
   return s;
 }
 
@@ -927,9 +830,8 @@ function budgetOf(envId, month) {
   return b;
 }
 function spentOf(envId, month) {
-  return state.txns.reduce(function (sum, t) {
-    return t.envelopeId === envId && t.month === month ? sum + t.amount : sum;
-  }, 0);
+  const per = state.actuals[envId];
+  return per ? (Number(per[month]) || 0) : 0;
 }
 function leftOf(envId, month) { return budgetOf(envId, month) - spentOf(envId, month); }
 function statusOf(budget, spent) {
@@ -947,51 +849,20 @@ function totalDebts() { return state.debts.reduce(function (s, d) { return s + (
 function assetsOfOwner(ownerId) {
   return state.accounts.reduce(function (s, a) { return a.ownerId === ownerId ? s + (Number(a.balance) || 0) : s; }, 0);
 }
-function billsOf(envId) { return state.bills[envId] || (state.bills[envId] = {}); }
 
 /* ========================= actions ========================= */
 
-/* บันทึกรายจ่ายลงซอง — ไม่แตะยอดบัญชี
-   ตอนนับเงินเราตั้งยอดบัญชีตรง ๆ อยู่แล้ว ถ้าหักตรงนี้ด้วยจะกลายเป็นหักซ้ำสองรอบ */
-function addTxn(envId, amount, opts) {
-  opts = opts || {};
-  state.txns.push({
-    id: uid('t'), envelopeId: envId, accountId: opts.accountId || '',
-    amount: amount, note: opts.note || '', date: opts.date || todayISO(),
-    month: opts.month || state.activeMonth, countId: opts.countId || ''
-  });
-  return autoTickBill(envId, opts.month || state.activeMonth);
-}
-
-// จ่ายครบงบของบิลรายเดือน → ติ๊กตารางบิลให้อัตโนมัติ
-function autoTickBill(envId, month) {
-  const env = envelope(envId);
-  if (!env || !env.recurring) return false;
-  const budget = budgetOf(envId, month);
-  if (budget > 0 && spentOf(envId, month) >= budget && !billsOf(envId)[month]) {
-    billsOf(envId)[month] = true;
-    return true;
-  }
-  return false;
-}
-
-// บันทึกจ่ายทีละรายการ (แท็บซอง) — หักยอดบัญชีที่เลือกด้วย
-function recordSpend(envId, accountId, amount, note) {
-  const ticked = addTxn(envId, amount, { accountId: accountId, note: note });
-  const acc = account(accountId);
-  if (acc) acc.balance = (Number(acc.balance) || 0) - amount;
-  save();
-  return ticked;
-}
-function removeTxn(txnId) {
-  const i = state.txns.findIndex(function (t) { return t.id === txnId; });
-  if (i < 0) return;
-  const t = state.txns[i];
-  const acc = account(t.accountId);
-  if (acc) acc.balance = (Number(acc.balance) || 0) + t.amount;
-  state.txns.splice(i, 1);
+/* ตั้งยอดจ่ายจริงของซองในเดือนนั้น — ทับค่าเดิมไปเลย
+   เป็นข้อมูลสถานะล้วน ๆ ไม่แตะยอดบัญชี เพราะยอดบัญชีได้ความจริงจากการนับเงินอยู่แล้ว */
+function setActual(envId, month, amount) {
+  const v = Math.round((Number(amount) || 0) * 100) / 100;
+  const per = state.actuals[envId] || (state.actuals[envId] = {});
+  if (v > 0) per[month] = v;
+  else delete per[month];
+  if (!Object.keys(per).length) delete state.actuals[envId];
   save();
 }
+
 function moveMoney(fromId, toId, amount) {
   state.transfers.push({
     id: uid('m'), fromEnvelopeId: fromId, toEnvelopeId: toId,
@@ -1000,86 +871,53 @@ function moveMoney(fromId, toId, amount) {
   save();
 }
 
-/* ---------------- การนับเงิน ---------------- */
+/* ---------------- นับเงิน = snapshot ทรัพย์สิน ---------------- */
 
-// บันทึกการนับหนึ่งรอบ: ตั้งยอดบัญชีใหม่ แล้วลงรายจ่ายของซองที่ติ๊ก + ส่วนต่างลงซองจิปาถะ
+// บันทึกยอดบัญชีที่นับได้ พร้อมเก็บภาพรวม ณ ตอนนั้นไว้วาดกราฟ net worth
 function saveCount(draft) {
-  const month = state.activeMonth;
-  const countId = uid('c');
-  const before = {}, after = {};
-  let drop = 0;
+  const before = {}, balances = {};
+  let diff = 0;
 
   countableAccounts().forEach(function (a) {
     const nv = draft.balances[a.id];
     const oldV = Number(a.balance) || 0;
-    const newV = (nv === undefined || nv === null || nv === '') ? oldV : Number(nv);
+    const newV = (nv === undefined || nv === null || nv === '') ? oldV : Number(nv) || 0;
     before[a.id] = oldV;
-    after[a.id] = newV;
-    drop += oldV - newV;
+    balances[a.id] = newV;
+    diff += newV - oldV;
   });
 
-  let ticked = 0;
-  Object.keys(draft.paid).forEach(function (envId) {
-    const amt = Number(draft.paid[envId]) || 0;
-    if (amt > 0) ticked += amt;
-  });
-
-  const misc = Math.round((drop - ticked) * 100) / 100;
-  const miscEnvId = draft.miscEnvelopeId || state.miscEnvelopeId;
-  const miscAmount = draft.miscOverride !== undefined && draft.miscOverride !== null
-    ? Number(draft.miscOverride) || 0
-    : Math.max(0, misc);
-
-  // ตั้งยอดบัญชีใหม่ก่อน แล้วค่อยลง txn ผ่าน addTxn ที่ไม่หักบัญชีซ้ำ
-  Object.keys(after).forEach(function (accId) {
+  Object.keys(balances).forEach(function (accId) {
     const acc = account(accId);
-    if (acc) acc.balance = after[accId];
+    if (acc) acc.balance = balances[accId];
   });
 
-  Object.keys(draft.paid).forEach(function (envId) {
-    const amt = Number(draft.paid[envId]) || 0;
-    if (amt > 0) addTxn(envId, amt, { countId: countId, month: month, note: 'จากการนับเงิน' });
-  });
-  if (miscAmount > 0 && miscEnvId) {
-    addTxn(miscEnvId, miscAmount, { countId: countId, month: month, note: 'ส่วนต่างจากการนับเงิน' });
-  }
-
+  const assets = totalAssets(), debts = totalDebts();
   state.counts.push({
-    id: countId, date: todayISO(), month: month,
-    before: before, after: after,
-    drop: drop, ticked: ticked, misc: miscAmount,
-    income: drop < 0 ? -drop : 0,
-    // เก็บภาพรวมไว้ด้วย เพื่อวาดกราฟย้อนหลังได้โดยไม่ต้องเดาย้อนจาก before/after
-    // (after มีเฉพาะบัญชีที่ตั้งให้นับ จึงประกอบกลับเป็นสินทรัพย์รวมไม่ได้)
-    assets: totalAssets(), debts: totalDebts(), netWorth: totalAssets() - totalDebts(),
+    id: uid('c'), date: todayISO(), month: state.activeMonth,
+    before: before, balances: balances,
+    assets: assets, debts: debts, netWorth: assets - debts,
     note: draft.note || ''
   });
   save();
-  return { drop: drop, ticked: ticked, misc: miscAmount, income: drop < 0 ? -drop : 0 };
+  return { diff: Math.round(diff * 100) / 100, netWorth: assets - debts };
 }
 
-// ยกเลิกการนับ: คืนยอดบัญชีจาก before แล้วลบ txn ที่เกิดจากการนับรอบนั้น
-function undoCount(countId) {
+// ลบ snapshot — ถ้าเป็นตัวล่าสุดจะคืนยอดบัญชีกลับไปเป็นก่อนนับให้ด้วย
+function removeCount(countId) {
   const i = state.counts.findIndex(function (c) { return c.id === countId; });
   if (i < 0) return false;
-  const c = state.counts[i];
-  Object.keys(c.before).forEach(function (accId) {
-    const acc = account(accId);
-    if (acc) acc.balance = c.before[accId];
-  });
-  const removed = state.txns.filter(function (t) { return t.countId === countId; });
-  state.txns = state.txns.filter(function (t) { return t.countId !== countId; });
-  // บิลที่ถูกติ๊กอัตโนมัติจากรอบนี้ ถ้าตอนนี้จ่ายไม่ครบงบแล้วก็ปลดติ๊กออก
-  removed.forEach(function (t) {
-    const env = envelope(t.envelopeId);
-    if (env && env.recurring && billsOf(t.envelopeId)[t.month] &&
-        spentOf(t.envelopeId, t.month) < budgetOf(t.envelopeId, t.month)) {
-      delete billsOf(t.envelopeId)[t.month];
-    }
-  });
+  const isLatest = i === state.counts.length - 1;
+  if (isLatest) {
+    const c = state.counts[i];
+    Object.keys(c.before || {}).forEach(function (accId) {
+      const acc = account(accId);
+      if (acc) acc.balance = c.before[accId];
+    });
+  }
   state.counts.splice(i, 1);
   save();
-  return true;
+  return isLatest;
 }
 
 function lastCount() { return state.counts.length ? state.counts[state.counts.length - 1] : null; }
@@ -1180,85 +1018,9 @@ function lineChart(points, opts) {
 }
 
 // กราฟแท่ง — ชุดเดียว ใช้สีเดียวทุกแท่ง (ห้ามไล่เฉดตามค่า) + เส้นอ้างอิงงบ
-function columnChart(bars, opts) {
-  opts = opts || {};
-  const W = 320, H = 158, L = 6, R = 6, T = 18, B = 22;
-  const pw = W - L - R, ph = H - T - B;
-  const maxV = Math.max.apply(null, bars.map(function (b) { return b.v; }).concat(opts.ref ? [opts.ref] : [0]));
-  const top = maxV > 0 ? maxV * 1.18 : 1;
-  const slot = pw / bars.length;
-  const bw = Math.min(34, slot * 0.62);      // แท่งบาง เว้นช่องว่างระหว่างแท่ง
-  const y = function (v) { return T + ph - ph * v / top; };
-
-  let g = '';
-  for (let i = 0; i <= 2; i++) {
-    const yy = T + ph * i / 2;
-    g += '<line class="gridline" x1="' + L + '" y1="' + yy.toFixed(1) + '" x2="' + (W - R) + '" y2="' + yy.toFixed(1) + '"/>';
-  }
-
-  let marks = '', ticks = '';
-  bars.forEach(function (b, i) {
-    const cx = L + slot * i + slot / 2;
-    const bx = cx - bw / 2;
-    const by = y(b.v), bh = Math.max(b.v > 0 ? 2 : 0, T + ph - by);
-    if (b.v > 0) {
-      marks += '<rect x="' + bx.toFixed(1) + '" y="' + by.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" ' +
-        'rx="4" fill="var(--s1)"/>';
-      marks += '<text class="vlabel" x="' + cx.toFixed(1) + '" y="' + Math.max(9, by - 5).toFixed(1) + '" text-anchor="middle">' +
-        esc(shortMoney(b.v)) + '</text>';
-    }
-    marks += '<rect class="hit" x="' + (cx - slot / 2).toFixed(1) + '" y="' + T + '" width="' + slot.toFixed(1) + '" height="' + ph + '" ' +
-      'data-tip="' + esc(b.label + ' · ' + money(b.v)) + '"/>';
-    ticks += '<text class="tick" x="' + cx.toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle">' + esc(b.tick) + '</text>';
-  });
-
-  let ref = '';
-  if (opts.ref > 0) {
-    const ry = y(opts.ref);
-    ref = '<line class="refline" x1="' + L + '" y1="' + ry.toFixed(1) + '" x2="' + (W - R) + '" y2="' + ry.toFixed(1) + '"/>' +
-      '<text class="reflabel" x="' + (W - R) + '" y="' + Math.max(8, ry - 4).toFixed(1) + '" text-anchor="end">' +
-      esc(opts.refLabel || '') + '</text>';
-  }
-
-  return '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(opts.aria || '') + '">' +
-    g + ref + marks +
-    '<line class="axisline" x1="' + L + '" y1="' + (T + ph) + '" x2="' + (W - R) + '" y2="' + (T + ph) + '"/>' +
-    ticks + '</svg>';
-}
-
-// แถบสัดส่วนแนวนอน — ส่วนต่อภาพรวม เว้นช่องว่าง 2px ระหว่างชิ้นแทนการตีเส้นขอบ
-function stackedBar(parts, total) {
-  if (!total) return '';
-  const W = 320, H = 26, gap = 2;
-  let x = 0, out = '';
-  parts.forEach(function (p, i) {
-    const w = Math.max(0, (W - gap * (parts.length - 1)) * p.v / total);
-    if (w > 0) {
-      out += '<rect x="' + x.toFixed(1) + '" y="0" width="' + w.toFixed(1) + '" height="' + H + '" rx="4" fill="' + p.color + '"/>';
-      out += '<rect class="hit" x="' + x.toFixed(1) + '" y="0" width="' + w.toFixed(1) + '" height="' + H + '" ' +
-        'data-tip="' + esc(p.label + ' · ' + money(p.v) + ' (' + Math.round(p.v / total * 100) + '%)') + '"/>';
-    }
-    x += w + gap;
-  });
-  return '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="สัดส่วนรายจ่ายตามหมวด">' + out + '</svg>';
-}
-
-function statTile(k, v, d) {
-  return '<div class="tile"><div class="k">' + esc(k) + '</div><div class="v num">' + esc(v) + '</div>' +
-    (d ? '<div class="d">' + esc(d) + '</div>' : '') + '</div>';
-}
-
-function dataTable(head, rows) {
-  return '<table class="dtable"><thead><tr>' +
-    head.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') +
-    '</tr></thead><tbody>' +
-    rows.map(function (r) {
-      return '<tr>' + r.map(function (c) { return '<td>' + esc(c) + '</td>'; }).join('') + '</tr>';
-    }).join('') +
-    '</tbody></table>';
-}
-
 /* ========================= views ========================= */
+let nwTable = false;
+
 function renderOverview() {
   const m = state.activeMonth;
   const t = totals(m);
@@ -1272,8 +1034,8 @@ function renderOverview() {
     '<span style="min-width:0"><span class="t">นับเงิน</span>' +
     '<span class="s">' + (last
       ? 'นับล่าสุด ' + (since === 0 ? 'วันนี้' : since === 1 ? 'เมื่อวาน' : since + ' วันก่อน') +
-        ' · ' + (last.drop < 0 ? 'เงินเข้า ' : 'ใช้ไป ') + money(Math.abs(last.drop))
-      : 'ยังไม่เคยนับ — เริ่มรอบแรกได้เลย') + '</span></span>' +
+        ' · สุทธิ ' + money(last.netWorth)
+      : 'ยังไม่เคยนับ — เก็บภาพทรัพย์สินครั้งแรกได้เลย') + '</span></span>' +
     '<span class="go">›</span>' +
   '</button>';
 
@@ -1285,6 +1047,37 @@ function renderOverview() {
       '<div><div class="k">💳 หนี้สินรวม</div><div class="v num">' + money(debts) + '</div></div>' +
     '</div>' +
   '</div>';
+
+  // กราฟ net worth จาก snapshot ที่นับไว้ — ชุดข้อมูลเดียว จึงไม่ต้องมีคำอธิบายสี
+  const points = state.counts
+    .filter(function (c) { return typeof c.netWorth === 'number'; })
+    .map(function (c) { return { v: c.netWorth, label: c.date, tick: c.date.slice(5).replace('-', '/') }; });
+  const nowNet = assets - debts;
+  if (!points.length || points[points.length - 1].v !== nowNet) {
+    points.push({ v: nowNet, label: 'ตอนนี้', tick: 'ตอนนี้' });
+  }
+
+  html += '<div class="section-title"><span>สินทรัพย์สุทธิย้อนหลัง</span>' +
+    (points.length > 1 ? '<button class="muted" data-action="nw-view">' +
+      (nwTable ? '📈 ดูเป็นกราฟ' : '📋 ดูเป็นตัวเลข') + '</button>' : '') +
+    '</div><div class="card">';
+  if (points.length < 2) {
+    html += '<div class="empty">ยังไม่มีประวัติพอจะวาดกราฟ<br>' +
+      '<span class="muted">กดนับเงินเก็บไว้หลาย ๆ ครั้ง กราฟจะค่อย ๆ เต็มขึ้นเอง</span></div>';
+  } else if (nwTable) {
+    points.slice().reverse().forEach(function (p, i) {
+      html += '<div class="row"' + (i === 0 ? ' style="padding-top:0"' : '') + '>' +
+        '<div style="min-width:0"><div class="nm">' + esc(p.label) + '</div></div>' +
+        '<div class="amt num">' + money(p.v) + '</div></div>';
+    });
+  } else {
+    const diff = points[points.length - 1].v - points[0].v;
+    html += lineChart(points, { aria: 'สินทรัพย์สุทธิย้อนหลังจากการนับเงิน' }) +
+      '<div class="kv" style="margin-top:10px"><span class="k">เปลี่ยนแปลงตั้งแต่ครั้งแรก</span>' +
+      '<span class="v num" style="color:' + (diff < 0 ? 'var(--danger)' : 'var(--brand-ink)') + '">' +
+      (diff > 0 ? '+' : '') + money(diff) + '</span></div>';
+  }
+  html += '</div>';
 
   html += '<div class="section-title"><span>งบประมาณเดือน ' + esc(monthLabel(m, true)) + '</span></div>';
   html += '<div class="card"><div class="ring-wrap">' + ring(pct, 'ใช้ไปแล้ว') +
@@ -1344,17 +1137,19 @@ function renderOverview() {
   html += '</div>';
 
   if (state.counts.length) {
-    const recent = state.counts.slice(-5).reverse();
+    const recent = state.counts.slice(-8).reverse();
     html += '<div class="section-title"><span>ประวัติการนับเงิน</span>' +
-      '<span class="muted">' + state.counts.length + ' รอบ</span></div><div class="card">';
+      '<span class="muted">' + state.counts.length + ' ครั้ง</span></div><div class="card">';
     recent.forEach(function (c, i) {
+      const prev = state.counts[state.counts.indexOf(c) - 1];
+      const d = prev && typeof prev.netWorth === 'number' && typeof c.netWorth === 'number'
+        ? c.netWorth - prev.netWorth : null;
       html += '<button class="row" style="width:100%;text-align:left' + (i === 0 ? ';padding-top:0' : '') + '" ' +
         'data-action="open-count" data-id="' + c.id + '">' +
         '<span class="emoji">🧮</span>' +
         '<div style="min-width:0"><div class="nm">' + esc(c.date) + '</div>' +
-        '<div class="sub">ติ๊ก ' + money(c.ticked) + ' · จิปาถะ ' + money(c.misc) + '</div></div>' +
-        '<div class="amt num" style="color:' + (c.drop > 0 ? 'var(--danger)' : 'var(--brand-ink)') + '">' +
-        (c.drop > 0 ? '−' : '+') + money(Math.abs(c.drop)) + '</div></button>';
+        '<div class="sub">' + (d === null ? 'ครั้งแรก' : (d >= 0 ? 'เพิ่มขึ้น ' : 'ลดลง ') + money(Math.abs(d))) + '</div></div>' +
+        '<div class="amt num">' + money(c.netWorth) + '</div></button>';
     });
     html += '</div>';
   }
@@ -1391,61 +1186,6 @@ function renderEnvelopes() {
   });
   html += '<div class="btn-row"><button class="btn ghost" data-action="add-env">➕ เพิ่มซองใหม่</button></div>';
   document.getElementById('view-envelopes').innerHTML = html;
-}
-
-function renderBills() {
-  const m = state.activeMonth;
-  const year = m.split('-')[0];
-  const nowMonth = parseInt(m.split('-')[1], 10);
-  const list = state.envelopes.filter(function (e) { return e.recurring; });
-
-  let html = '<div class="section-title"><span>ตารางบิลปี ' + (parseInt(year, 10) + 543) + '</span>' +
-    '<span class="muted">แตะเพื่อติ๊กว่าจ่ายแล้ว</span></div>';
-
-  if (!list.length) {
-    html += '<div class="card"><div class="empty">ยังไม่มีรายการจ่ายประจำ<br><span class="muted">เปิด “บิลรายเดือน” ได้ตอนแก้ไขซอง</span></div></div>';
-    document.getElementById('view-bills').innerHTML = html;
-    return;
-  }
-
-  html += '<div class="table-wrap"><table class="bills"><thead><tr><th class="rowhead">รายการ</th>';
-  for (let i = 1; i <= 12; i++) {
-    html += '<th class="' + (i === nowMonth ? 'now' : '') + '">' + TH_MONTHS[i - 1] + '</th>';
-  }
-  html += '</tr></thead><tbody>';
-
-  const monthSums = new Array(13).fill(0);
-  list.forEach(function (e) {
-    html += '<tr><td class="rowhead"><div class="nm">' + esc(e.emoji) + ' ' + esc(e.name) + '</div>' +
-      '<div class="am num">' + money(e.budget) + '</div></td>';
-    for (let i = 1; i <= 12; i++) {
-      const key = year + '-' + pad(i);
-      const on = !!billsOf(e.id)[key];
-      if (on) monthSums[i] += Number(e.budget) || 0;
-      html += '<td class="' + (i === nowMonth ? 'now' : '') + '">' +
-        '<button class="tick ' + (on ? 'on' : '') + '" data-action="toggle-bill" data-id="' + e.id + '" data-month="' + key + '" ' +
-        'aria-label="' + esc(e.name) + ' ' + TH_MONTHS[i - 1] + '" aria-pressed="' + on + '">' + (on ? '✓' : '○') + '</button></td>';
-    }
-    html += '</tr>';
-  });
-
-  html += '</tbody><tfoot><tr><td class="rowhead">จ่ายแล้วรวม</td>';
-  for (let i = 1; i <= 12; i++) {
-    html += '<td class="sum num' + (i === nowMonth ? ' now' : '') + '">' + (monthSums[i] ? nf.format(monthSums[i]) : '–') + '</td>';
-  }
-  html += '</tr></tfoot></table></div>';
-
-  const totalRecurring = list.reduce(function (s, e) { return s + (Number(e.budget) || 0); }, 0);
-  const paidThis = monthSums[nowMonth];
-  html += '<div class="section-title"><span>สรุปเดือน ' + esc(monthLabel(m, true)) + '</span></div>' +
-    '<div class="card">' +
-      '<div class="kv"><span class="k">บิลประจำทั้งหมด</span><span class="v num">' + money(totalRecurring) + '</span></div>' +
-      '<div class="kv"><span class="k">ติ๊กว่าจ่ายแล้ว</span><span class="v num">' + money(paidThis) + '</span></div>' +
-      '<div class="kv"><span class="k">ยังไม่จ่าย</span><span class="v num" style="color:' + (totalRecurring - paidThis > 0 ? 'var(--warn)' : 'var(--brand-ink)') + '">' + money(totalRecurring - paidThis) + '</span></div>' +
-      '<div class="muted" style="margin-top:12px">เมื่อบันทึกจ่ายในซองจนครบงบ ระบบจะติ๊กบิลเดือนนั้นให้อัตโนมัติ</div>' +
-    '</div>';
-
-  document.getElementById('view-bills').innerHTML = html;
 }
 
 function renderAccounts() {
@@ -1522,171 +1262,12 @@ function renderAccounts() {
   }
   html += '</div><div class="btn-row"><button class="btn ghost sm" data-action="add-debt">➕ เพิ่มหนี้สิน</button></div>';
 
-  const misc = envelope(state.miscEnvelopeId);
   html += '<div class="section-title"><span>ตั้งค่า</span></div><div class="card">' +
-    '<label class="field" style="margin-top:0"><span>ซองปลายทางของเงินที่นับแล้วไม่ได้ระบุ</span>' +
-    '<select data-setting="misc-envelope">' +
-      state.envelopes.map(function (e) {
-        return '<option value="' + e.id + '"' + (e.id === state.miscEnvelopeId ? ' selected' : '') + '>' +
-          esc(e.emoji + ' ' + e.name) + '</option>';
-      }).join('') +
-    '</select></label>' +
-    '<div class="muted" style="margin-top:10px">ตอนนี้ส่วนต่างจะลงที่ ' + esc(misc ? misc.emoji + ' ' + misc.name : '—') + '</div>' +
     '<div class="muted" style="margin-top:14px">ข้อมูลถูกเก็บไว้ในเครื่องนี้เท่านั้น (localStorage) การล้างข้อมูลเบราว์เซอร์จะทำให้ข้อมูลหาย</div>' +
     '<div class="btn-row"><button class="btn danger sm" data-action="reset">↺ รีเซ็ตกลับค่าเริ่มต้นจากชีต</button></div>' +
   '</div>';
 
   document.getElementById('view-accounts').innerHTML = html;
-}
-
-let statsRange = 6;
-let statsTable = false;
-
-function recentMonths(n) {
-  const out = [];
-  for (let i = n - 1; i >= 0; i--) out.push(shiftMonth(state.activeMonth, -i));
-  return out;
-}
-
-function renderStats() {
-  const months = recentMonths(statsRange);
-  const inRange = function (m) { return months.indexOf(m) >= 0; };
-  const spentByMonth = months.map(function (m) {
-    return state.envelopes.reduce(function (s, e) { return s + spentOf(e.id, m); }, 0);
-  });
-  const totalSpent = spentByMonth.reduce(function (a, b) { return a + b; }, 0);
-  const monthsWithData = spentByMonth.filter(function (v) { return v > 0; }).length;
-  const avg = monthsWithData ? totalSpent / monthsWithData : 0;
-  const currentBudget = state.envelopes.reduce(function (s, e) { return s + (Number(e.budget) || 0); }, 0);
-  const misc = state.envelopes.reduce(function (s, e) {
-    return e.id === state.miscEnvelopeId ? s + months.reduce(function (x, m) { return x + spentOf(e.id, m); }, 0) : s;
-  }, 0);
-  const countsInRange = state.counts.filter(function (c) { return inRange(c.month); });
-
-  let html = '<div class="range">' +
-    [3, 6, 12].map(function (n) {
-      return '<button class="' + (statsRange === n ? 'on' : '') + '" data-action="stats-range" data-n="' + n + '">' +
-        n + ' เดือน</button>';
-    }).join('') + '</div>';
-
-  // ---- ตัวเลขหลัก ----
-  html += '<div class="tiles">' +
-    statTile('จ่ายรวมในช่วงนี้', money(totalSpent), monthsWithData + ' เดือนที่มีข้อมูล') +
-    statTile('เฉลี่ยต่อเดือน', money(Math.round(avg)), 'งบตอนนี้ ' + money(currentBudget)) +
-    statTile('นับเงินไปแล้ว', countsInRange.length + ' รอบ', state.counts.length + ' รอบทั้งหมด') +
-    statTile('ลงจิปาถะ', money(misc), totalSpent > 0 ? Math.round(misc / totalSpent * 100) + '% ของรายจ่าย' : '—') +
-  '</div>';
-
-  // ---- สินทรัพย์สุทธิย้อนหลัง ----
-  const nwPoints = state.counts
-    .filter(function (c) { return typeof c.netWorth === 'number' && inRange(c.month); })
-    .map(function (c) {
-      return { v: c.netWorth, label: c.date, tick: c.date.slice(5).replace('-', '/') };
-    });
-  const nowNet = totalAssets() - totalDebts();
-  if (!nwPoints.length || nwPoints[nwPoints.length - 1].v !== nowNet) {
-    nwPoints.push({ v: nowNet, label: 'ตอนนี้', tick: 'ตอนนี้' });
-  }
-
-  html += '<div class="section-title"><span>สินทรัพย์สุทธิย้อนหลัง</span>' +
-    '<span class="muted">' + (nwPoints.length > 1 ? nwPoints.length + ' จุด' : '') + '</span></div>' +
-    '<div class="card">';
-  if (nwPoints.length < 2) {
-    html += '<div class="empty">ยังไม่มีประวัติพอจะวาดกราฟ<br>' +
-      '<span class="muted">กราฟจะค่อย ๆ เต็มขึ้นทุกครั้งที่กดนับเงิน</span></div>';
-  } else if (statsTable) {
-    html += dataTable(['เมื่อไหร่', 'สินทรัพย์สุทธิ'], nwPoints.map(function (p) { return [p.label, money(p.v)]; }));
-  } else {
-    const first = nwPoints[0].v, last = nwPoints[nwPoints.length - 1].v;
-    const diff = last - first;
-    html += lineChart(nwPoints, { aria: 'สินทรัพย์สุทธิย้อนหลัง ' + statsRange + ' เดือน' }) +
-      '<div class="kv" style="margin-top:10px"><span class="k">เปลี่ยนแปลงในช่วงนี้</span>' +
-      '<span class="v num" style="color:' + (diff < 0 ? 'var(--danger)' : 'var(--brand-ink)') + '">' +
-      (diff > 0 ? '+' : '') + money(diff) + '</span></div>';
-  }
-  html += '</div>';
-
-  // ---- จ่ายจริงรายเดือน ----
-  html += '<div class="section-title"><span>จ่ายจริงรายเดือน</span></div><div class="card">';
-  if (totalSpent === 0) {
-    html += '<div class="empty">ยังไม่มีรายจ่ายในช่วงนี้</div>';
-  } else if (statsTable) {
-    html += dataTable(['เดือน', 'จ่ายจริง', 'เทียบงบปัจจุบัน'], months.map(function (m, i) {
-      return [monthLabel(m, false), money(spentByMonth[i]),
-        currentBudget > 0 ? Math.round(spentByMonth[i] / currentBudget * 100) + '%' : '—'];
-    }));
-  } else {
-    html += columnChart(months.map(function (m, i) {
-      return { v: spentByMonth[i], label: monthLabel(m, true), tick: TH_MONTHS[parseInt(m.split('-')[1], 10) - 1] };
-    }), { ref: currentBudget, refLabel: 'งบปัจจุบัน ' + shortMoney(currentBudget), aria: 'จ่ายจริงรายเดือน' }) +
-    '<div class="muted" style="margin-top:10px">เส้นอ้างอิงคืองบรวม<strong>ปัจจุบัน</strong> ' + esc(money(currentBudget)) +
-    ' — แอปไม่ได้เก็บงบย้อนหลังของแต่ละเดือน จึงใช้เทียบคร่าว ๆ เท่านั้น</div>';
-  }
-  html += '</div>';
-
-  // ---- สัดส่วนตามหมวด ----
-  const catColors = ['var(--s1)', 'var(--s2)', 'var(--s3)'];
-  const cats = state.categories.map(function (c, i) {
-    const v = state.envelopes.reduce(function (s, e) {
-      return e.categoryId === c.id ? s + months.reduce(function (x, m) { return x + spentOf(e.id, m); }, 0) : s;
-    }, 0);
-    return { label: c.name, v: v, color: catColors[i % catColors.length] };
-  }).filter(function (c) { return c.v > 0; });
-
-  html += '<div class="section-title"><span>จ่ายตามหมวดหมู่</span></div><div class="card">';
-  if (!cats.length) {
-    html += '<div class="empty">ยังไม่มีรายจ่ายในช่วงนี้</div>';
-  } else if (statsTable) {
-    html += dataTable(['หมวด', 'จ่ายจริง', 'สัดส่วน'], cats.map(function (c) {
-      return [c.label, money(c.v), Math.round(c.v / totalSpent * 100) + '%'];
-    }));
-  } else {
-    html += stackedBar(cats, totalSpent) +
-      '<div class="legend">' + cats.map(function (c) {
-        return '<span><i style="background:' + c.color + '"></i>' + esc(c.label) + ' ' +
-          money(c.v) + ' (' + Math.round(c.v / totalSpent * 100) + '%)</span>';
-      }).join('') + '</div>';
-  }
-  html += '</div>';
-
-  // ---- ซองที่ใช้เยอะสุด ----
-  const top = state.envelopes.map(function (e) {
-    return { e: e, v: months.reduce(function (x, m) { return x + spentOf(e.id, m); }, 0) };
-  }).filter(function (r) { return r.v > 0; })
-    .sort(function (a, b) { return b.v - a.v; }).slice(0, 6);
-
-  html += '<div class="section-title"><span>ซองที่ใช้เยอะสุด</span></div><div class="card">';
-  if (!top.length) {
-    html += '<div class="empty">ยังไม่มีรายจ่ายในช่วงนี้</div>';
-  } else if (statsTable) {
-    html += dataTable(['ซอง', 'จ่ายจริง'], top.map(function (r) { return [r.e.name, money(r.v)]; }));
-  } else {
-    const maxV = top[0].v;
-    top.forEach(function (r, i) {
-      html += '<div class="catrow"' + (i === 0 ? ' style="margin-top:0"' : '') + '>' +
-        '<div class="top"><span class="nm">' + esc(r.e.emoji + ' ' + r.e.name) + '</span>' +
-        '<span class="am num">' + money(r.v) + '</span></div>' +
-        '<div class="bar"><i style="width:' + (r.v / maxV * 100).toFixed(1) + '%;background:var(--s1)"></i></div></div>';
-    });
-  }
-  html += '</div>';
-
-  // ---- ความละเอียดของการนับ ----
-  if (totalSpent > 0) {
-    const pct = Math.round(misc / totalSpent * 100);
-    html += '<div class="section-title"><span>ความละเอียดของการนับ</span></div><div class="card">' +
-      '<div class="kv"><span class="k">ระบุได้ว่าจ่ายอะไร</span><span class="v num">' + (100 - pct) + '%</span></div>' +
-      '<div class="meter"><i style="width:' + (100 - pct) + '%"></i></div>' +
-      '<div class="muted" style="margin-top:10px">' +
-      (pct > 40 ? 'จิปาถะเยอะไปหน่อย — ตอนนับลองติ๊กให้ครบขึ้นอีกนิด จะเห็นภาพว่าเงินไปไหนชัดกว่านี้'
-       : pct > 0 ? 'กำลังดี ส่วนใหญ่ระบุได้ว่าจ่ายอะไรไป'
-       : 'ระบุได้ครบทุกบาท') + '</div></div>';
-  }
-
-  html += '<div class="btn-row"><button class="btn ghost sm" data-action="stats-view">' +
-    (statsTable ? '📈 ดูเป็นกราฟ' : '📋 ดูเป็นตาราง') + '</button></div>';
-
-  document.getElementById('view-stats').innerHTML = html;
 }
 
 function render() {
@@ -1696,8 +1277,6 @@ function render() {
 
   if (activeTab === 'overview') renderOverview();
   else if (activeTab === 'envelopes') renderEnvelopes();
-  else if (activeTab === 'bills') renderBills();
-  else if (activeTab === 'stats') renderStats();
   else renderAccounts();
 }
 
@@ -1737,19 +1316,7 @@ function toast(msg) {
   toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2400);
 }
 
-function accountOptions(selected) {
-  const placeholder = '<option value="" disabled' + (selected ? '' : ' selected') + '>เลือกบัญชี…</option>';
-  return placeholder + state.owners.map(function (o) {
-    const list = state.accounts.filter(function (a) { return a.ownerId === o.id; });
-    if (!list.length) return '';
-    return '<optgroup label="' + esc(o.name) + '">' + list.map(function (a) {
-      return '<option value="' + a.id + '"' + (a.id === selected ? ' selected' : '') + '>' +
-        esc(a.emoji + ' ' + a.name) + ' — ' + money(a.balance) + '</option>';
-    }).join('') + '</optgroup>';
-  }).join('');
-}
-
-/* ---- ซอง: บันทึกจ่าย / โยกเงิน / แก้ไข ---- */
+/* ---- ซอง: จ่ายจริง / โยกเงิน / แก้ไข ---- */
 function envSheet(envId, mode) {
   const env = envelope(envId);
   if (!env) return;
@@ -1773,30 +1340,20 @@ function envSheet(envId, mode) {
   '</div>';
 
   html += '<div class="seg">' +
-    '<button class="' + (mode === 'spend' ? 'on' : '') + '" data-action="env-mode" data-id="' + envId + '" data-mode="spend">💸 บันทึกจ่าย</button>' +
+    '<button class="' + (mode === 'spend' ? 'on' : '') + '" data-action="env-mode" data-id="' + envId + '" data-mode="spend">💸 จ่ายจริง</button>' +
     '<button class="' + (mode === 'move' ? 'on' : '') + '" data-action="env-mode" data-id="' + envId + '" data-mode="move">🔁 โยกเงิน</button>' +
     '<button class="' + (mode === 'edit' ? 'on' : '') + '" data-action="env-mode" data-id="' + envId + '" data-mode="edit">⚙️ แก้ไข</button>' +
   '</div>';
 
   if (mode === 'spend') {
     html += '<form data-form="spend" data-id="' + envId + '">' +
-      '<label class="field"><span>จำนวนเงินที่จ่าย</span>' +
-      '<input class="amount" type="number" name="amount" inputmode="decimal" step="0.01" min="0.01" placeholder="0" required data-autofocus></label>' +
-      '<label class="field"><span>จ่ายจากบัญชี</span><select name="accountId" required>' + accountOptions(null) + '</select></label>' +
-      '<label class="field"><span>โน้ต (ไม่บังคับ)</span><input type="text" name="note" maxlength="80" placeholder="เช่น ข้าวเที่ยง"></label>' +
-      '<div class="btn-row"><button type="submit" class="btn">บันทึกรายจ่าย</button></div>' +
-    '</form>';
-
-    const hist = state.txns.filter(function (t) { return t.envelopeId === envId && t.month === m; }).reverse();
-    html += '<div class="section-title"><span>รายการเดือนนี้ · ' + hist.length + '</span></div><div class="hist">';
-    if (!hist.length) html += '<div class="empty">ยังไม่มีรายการจ่ายในเดือนนี้</div>';
-    hist.forEach(function (t) {
-      const a = account(t.accountId);
-      html += '<div class="row"><div style="min-width:0"><div class="nm">' + money(t.amount) + '</div>' +
-        '<div class="sub">' + esc(t.date) + (a ? ' · ' + esc(a.name) : '') + (t.note ? ' · ' + esc(t.note) : '') + '</div></div>' +
-        '<button class="del" data-action="del-txn" data-id="' + t.id + '" data-env="' + envId + '" aria-label="ลบรายการ">🗑️</button></div>';
-    });
-    html += '</div>';
+      '<label class="field"><span>เดือนนี้จ่ายจริงไปแล้วเท่าไหร่</span>' +
+      '<input class="amount" type="number" name="amount" inputmode="decimal" step="0.01" min="0" value="' + s + '" required data-autofocus></label>' +
+      '<div class="muted" style="margin-top:8px;text-align:center">พิมพ์ยอดรวมของเดือนนี้ทับได้เลย · งบที่ตั้งไว้ ' + esc(money(b)) + '</div>' +
+      '<div class="btn-row"><button type="submit" class="btn">บันทึก</button></div>' +
+    '</form>' +
+    '<div class="muted" style="margin-top:14px">ยอดนี้เป็นข้อมูลสถานะอย่างเดียว ไม่ไปหักยอดบัญชี ' +
+    'ยอดบัญชีอัปเดตตอนกดนับเงินเท่านั้น</div>';
 
   } else if (mode === 'move') {
     const others = state.envelopes.filter(function (e) { return e.id !== envId; });
@@ -1848,10 +1405,6 @@ function envSheet(envId, mode) {
           return '<option value="' + o.id + '"' + (o.id === env.ownerId ? ' selected' : '') + '>' + esc(o.name) + '</option>';
         }).join('') +
       '</select></label>' +
-      '<label class="field" style="display:flex;align-items:center;gap:10px">' +
-        '<input type="checkbox" name="recurring" ' + (env.recurring ? 'checked' : '') + ' style="width:20px;height:20px;accent-color:var(--brand)">' +
-        '<span style="margin:0">เป็นบิลรายเดือน (แสดงในตารางบิล)</span>' +
-      '</label>' +
       '<div class="btn-grid">' +
         '<button type="button" class="btn danger" data-action="del-env" data-id="' + envId + '">ลบซองนี้</button>' +
         '<button type="submit" class="btn">บันทึก</button>' +
@@ -1953,59 +1506,41 @@ function addEnvSheet() {
       '<label class="field"><span>ผู้รับผิดชอบ</span><select name="ownerId">' +
         state.owners.map(function (o) { return '<option value="' + o.id + '">' + esc(o.name) + '</option>'; }).join('') +
       '</select></label>' +
-      '<label class="field" style="display:flex;align-items:center;gap:10px">' +
-        '<input type="checkbox" name="recurring" style="width:20px;height:20px;accent-color:var(--brand)">' +
-        '<span style="margin:0">เป็นบิลรายเดือน (แสดงในตารางบิล)</span>' +
-      '</label>' +
       '<div class="btn-row"><button type="submit" class="btn">เพิ่มซอง</button></div>' +
     '</form>';
   openSheet(html);
 }
 
-/* ---------------- wizard นับเงิน ---------------- */
+/* ---------------- นับเงิน (หน้าเดียว) ---------------- */
 let countDraft = null;
 
 function startCount() {
-  countDraft = { step: 1, balances: {}, paid: {}, miscOverride: null, miscEnvelopeId: state.miscEnvelopeId, note: '' };
+  countDraft = { balances: {}, note: '' };
   countableAccounts().forEach(function (a) { countDraft.balances[a.id] = Number(a.balance) || 0; });
   countSheet();
 }
 
-function countSums() {
-  let drop = 0;
+function countTotals() {
+  let now = 0, was = 0;
   countableAccounts().forEach(function (a) {
     const old = Number(a.balance) || 0;
     const nv = countDraft.balances[a.id];
-    const now = (nv === '' || nv === undefined || nv === null) ? old : Number(nv) || 0;
-    drop += old - now;
+    was += old;
+    now += (nv === '' || nv === undefined || nv === null) ? old : Number(nv) || 0;
   });
-  let ticked = 0;
-  Object.keys(countDraft.paid).forEach(function (k) { ticked += Number(countDraft.paid[k]) || 0; });
-  drop = Math.round(drop * 100) / 100;
-  ticked = Math.round(ticked * 100) / 100;
-  const auto = Math.max(0, Math.round((drop - ticked) * 100) / 100);
-  const misc = (countDraft.miscOverride === null || countDraft.miscOverride === undefined)
-    ? auto : Math.max(0, Number(countDraft.miscOverride) || 0);
-  return { drop: drop, ticked: ticked, misc: misc, auto: auto, income: drop < 0 ? -drop : 0 };
+  return { now: Math.round(now * 100) / 100, diff: Math.round((now - was) * 100) / 100 };
 }
 
 function countTallyHTML() {
-  const s = countSums();
-  if (countDraft.step === 1) {
-    const total = countableAccounts().reduce(function (sum, a) {
-      const nv = countDraft.balances[a.id];
-      return sum + ((nv === '' || nv === undefined || nv === null) ? (Number(a.balance) || 0) : Number(nv) || 0);
-    }, 0);
-    return '<div class="kv"><span class="k">ยอดรวมเฉพาะบัญชีที่นับ</span><span class="v num">' + money(total) + '</span></div>' +
-      '<div class="kv"><span class="k">' + (s.drop < 0 ? 'เงินเพิ่มขึ้น' : 'เงินหายไป') + '</span>' +
-      '<span class="v num" style="color:' + (s.drop > 0 ? 'var(--danger)' : 'var(--brand-ink)') + '">' + money(Math.abs(s.drop)) + '</span></div>';
-  }
-  if (countDraft.step === 2) {
-    return '<div class="kv"><span class="k">เงินที่หายไป</span><span class="v num">' + money(Math.max(0, s.drop)) + '</span></div>' +
-      '<div class="kv"><span class="k">ติ๊กว่าจ่ายแล้ว</span><span class="v num">' + money(s.ticked) + '</span></div>' +
-      '<div class="kv"><span class="k">ยังไม่ได้ระบุ</span><span class="v num" style="color:var(--warn)">' + money(s.auto) + '</span></div>';
-  }
-  return '';
+  const t = countTotals();
+  const other = totalAssets() - countableAccounts().reduce(function (s, a) { return s + (Number(a.balance) || 0); }, 0);
+  return '<div class="kv"><span class="k">รวมบัญชีที่นับ</span><span class="v num">' + money(t.now) + '</span></div>' +
+    (other !== 0 ? '<div class="kv"><span class="k">บัญชีที่ไม่ได้นับ</span><span class="v num">' + money(other) + '</span></div>' : '') +
+    '<div class="kv"><span class="k">สินทรัพย์สุทธิหลังบันทึก</span><span class="v num">' +
+      money(t.now + other - totalDebts()) + '</span></div>' +
+    '<div class="kv"><span class="k">ต่างจากครั้งก่อน</span>' +
+      '<span class="v num" style="color:' + (t.diff < 0 ? 'var(--danger)' : 'var(--brand-ink)') + '">' +
+      (t.diff > 0 ? '+' : '') + money(t.diff) + '</span></div>';
 }
 
 function updateCountTally() {
@@ -2014,111 +1549,38 @@ function updateCountTally() {
 }
 
 function countSheet() {
-  const step = countDraft.step;
-  const month = state.activeMonth;
-  const s = countSums();
-
+  const list = countableAccounts();
   let html = '<div class="sheet-head"><div style="flex:1">' +
     '<h2>🧮 นับเงิน</h2>' +
-    '<div class="sheet-sub">' +
-      (step === 1 ? 'ขั้นที่ 1 — ยอดคงเหลือตอนนี้ของแต่ละบัญชี'
-      : step === 2 ? 'ขั้นที่ 2 — จ่ายอะไรไปแล้วบ้าง'
-      : 'ขั้นที่ 3 — ตรวจก่อนบันทึก') +
-    '</div></div></div>' +
-    '<div class="steps"><i class="on"></i><i class="' + (step >= 2 ? 'on' : '') + '"></i><i class="' + (step >= 3 ? 'on' : '') + '"></i></div>';
+    '<div class="sheet-sub">ใส่ยอดคงเหลือจริงของแต่ละบัญชีตอนนี้ แล้วเก็บไว้เป็นภาพ ณ เวลานี้</div>' +
+    '</div></div>' +
+    '<div class="tally" id="countTally">' + countTallyHTML() + '</div>';
 
-  if (step < 3) html += '<div class="tally" id="countTally">' + countTallyHTML() + '</div>';
-
-  if (step === 1) {
-    const list = countableAccounts();
-    if (!list.length) {
-      html += '<div class="empty">ยังไม่มีบัญชีที่ตั้งให้นับ<br><span class="muted">เปิดสวิตช์ "นับบัญชีนี้" ได้ที่หน้าบัญชี</span></div>';
-    }
-    list.forEach(function (a) {
-      const old = Number(a.balance) || 0;
-      const nv = countDraft.balances[a.id];
-      const now = (nv === '' || nv === undefined || nv === null) ? old : Number(nv) || 0;
-      const d = now - old;
-      html += '<div class="cnt-row">' + accountBadge(a) +
-        '<div style="min-width:0"><div class="nm">' + esc(a.name) + '</div>' +
-        '<div class="was">เดิม ' + money(old) + '</div></div>' +
-        '<div style="margin-left:auto;flex:none">' +
-          '<input type="number" inputmode="decimal" step="0.01" data-acc="' + a.id + '" value="' + now + '" aria-label="ยอดของ ' + esc(a.name) + '">' +
-          '<div class="delta ' + (d < 0 ? 'down' : d > 0 ? 'up' : '') + '">' + (d === 0 ? 'เท่าเดิม' : (d > 0 ? '+' : '') + money(d)) + '</div>' +
-        '</div>' +
-      '</div>';
-    });
-    html += '<div class="btn-grid">' +
-      '<button class="btn ghost" data-action="close-sheet">ยกเลิก</button>' +
-      '<button class="btn" data-action="count-step" data-step="2">ถัดไป</button>' +
-    '</div>';
-
-  } else if (step === 2) {
-    html += '<div class="muted" style="margin-bottom:10px">แตะเพื่อติ๊กว่าจ่ายแล้ว ยอดที่ขึ้นให้คือยอดงบ กดที่ช่องยอดเพื่อแก้เป็นยอดจริงได้</div>';
-    state.categories.forEach(function (c) {
-      const list = state.envelopes.filter(function (e) {
-        return e.categoryId === c.id && e.id !== countDraft.miscEnvelopeId;
-      });
-      if (!list.length) return;
-      html += '<div class="section-title"><span>' + esc(c.name) + '</span></div>';
-      list.forEach(function (e) {
-        const budget = budgetOf(e.id, month), already = spentOf(e.id, month);
-        const done = budget > 0 && already >= budget;
-        const on = countDraft.paid[e.id] !== undefined;
-        const val = on ? countDraft.paid[e.id] : Math.max(0, Math.round((budget - already) * 100) / 100);
-        html += '<div class="pick' + (on ? ' on' : '') + (done ? ' done' : '') + '"' +
-          (done ? '' : ' data-action="count-pick" data-id="' + e.id + '"') + '>' +
-          '<span class="box">✓</span>' +
-          '<span class="emoji">' + esc(e.emoji) + '</span>' +
-          '<span style="min-width:0"><span class="nm">' + esc(e.name) + '</span>' +
-          '<span class="sub">' + (done ? 'บันทึกครบงบไปแล้วเดือนนี้' : (already > 0 ? 'บันทึกไปแล้ว ' + money(already) + ' จาก ' + money(budget) : 'งบ ' + money(budget))) + '</span></span>' +
-          (done ? '<span class="amt num">' + money(already) + '</span>'
-                : '<input class="amt num" type="number" inputmode="decimal" step="0.01" min="0" data-paid="' + e.id + '" value="' + val + '"' +
-                  (on ? '' : ' disabled') + ' aria-label="ยอดของ ' + esc(e.name) + '">') +
-        '</div>';
-      });
-    });
-    html += '<div class="btn-grid">' +
-      '<button class="btn ghost" data-action="count-step" data-step="1">ย้อนกลับ</button>' +
-      '<button class="btn" data-action="count-step" data-step="3">ถัดไป</button>' +
-    '</div>';
-
-  } else {
-    const changed = countableAccounts().filter(function (a) {
-      const nv = countDraft.balances[a.id];
-      return nv !== undefined && Number(nv) !== (Number(a.balance) || 0);
-    });
-    const picks = Object.keys(countDraft.paid);
-
-    html += '<div class="card" style="background:var(--surface-2)">' +
-      '<div class="kv"><span class="k">' + (s.drop < 0 ? '💰 เงินเพิ่มขึ้น' : '💸 เงินหายไป') + '</span>' +
-        '<span class="v num">' + money(Math.abs(s.drop)) + '</span></div>' +
-      '<div class="kv"><span class="k">✅ ติ๊กว่าจ่ายแล้ว ' + picks.length + ' รายการ</span><span class="v num">' + money(s.ticked) + '</span></div>' +
-      '<div class="kv"><span class="k">🧾 ลงซองจิปาถะ</span><span class="v num" style="color:var(--warn)">' + money(s.misc) + '</span></div>' +
-      '<div class="kv"><span class="k">🏦 บัญชีที่ยอดเปลี่ยน</span><span class="v num">' + changed.length + ' บัญชี</span></div>' +
-    '</div>';
-
-    if (s.income > 0) {
-      html += '<div class="card" style="margin-top:12px;border-color:var(--brand)">' +
-        '<div class="muted">ยอดรวมเพิ่มขึ้น ' + money(s.income) + ' — บันทึกเป็นเงินเข้า ไม่ไปหักซองไหน</div></div>';
-    }
-
-    html += '<label class="field"><span>ยอดที่จะลงซองจิปาถะ</span>' +
-      '<input type="number" inputmode="decimal" step="0.01" min="0" data-misc="1" value="' + s.misc + '"></label>' +
-      '<label class="field"><span>ลงซองไหน</span><select data-misc-env="1">' +
-        state.envelopes.map(function (e) {
-          return '<option value="' + e.id + '"' + (e.id === countDraft.miscEnvelopeId ? ' selected' : '') + '>' +
-            esc(e.emoji + ' ' + e.name) + '</option>';
-        }).join('') +
-      '</select></label>' +
-      '<label class="field"><span>โน้ตของการนับรอบนี้ (ไม่บังคับ)</span>' +
-      '<input type="text" data-count-note="1" maxlength="80" value="' + esc(countDraft.note || '') + '" placeholder="เช่น นับหลังเงินเดือนออก"></label>';
-
-    html += '<div class="btn-grid">' +
-      '<button class="btn ghost" data-action="count-step" data-step="2">ย้อนกลับ</button>' +
-      '<button class="btn" data-action="count-save">บันทึกการนับ</button>' +
-    '</div>';
+  if (!list.length) {
+    html += '<div class="empty">ยังไม่มีบัญชีที่ตั้งให้นับ<br>' +
+      '<span class="muted">เปิดสวิตช์ "นับบัญชีนี้" ได้ที่หน้าบัญชี</span></div>';
   }
+  list.forEach(function (a) {
+    const old = Number(a.balance) || 0;
+    const nv = countDraft.balances[a.id];
+    const now = (nv === '' || nv === undefined || nv === null) ? old : Number(nv) || 0;
+    const d = now - old;
+    html += '<div class="cnt-row">' + accountBadge(a) +
+      '<div style="min-width:0"><div class="nm">' + esc(a.name) + '</div>' +
+      '<div class="was">เดิม ' + money(old) + '</div></div>' +
+      '<div style="margin-left:auto;flex:none">' +
+        '<input type="number" inputmode="decimal" step="0.01" data-acc="' + a.id + '" value="' + now + '" aria-label="ยอดของ ' + esc(a.name) + '">' +
+        '<div class="delta ' + (d < 0 ? 'down' : d > 0 ? 'up' : '') + '">' + (d === 0 ? 'เท่าเดิม' : (d > 0 ? '+' : '') + money(d)) + '</div>' +
+      '</div>' +
+    '</div>';
+  });
+
+  html += '<label class="field"><span>โน้ต (ไม่บังคับ)</span>' +
+    '<input type="text" data-count-note="1" maxlength="80" value="' + esc(countDraft.note || '') + '" placeholder="เช่น นับหลังเงินเดือนออก"></label>' +
+    '<div class="btn-grid">' +
+      '<button class="btn ghost" data-action="close-sheet">ยกเลิก</button>' +
+      '<button class="btn" data-action="count-save">บันทึก</button>' +
+    '</div>';
 
   openSheet(html);
 }
@@ -2126,42 +1588,37 @@ function countSheet() {
 function countDetailSheet(countId) {
   const c = byId(state.counts, countId);
   if (!c) return;
-  const rows = state.txns.filter(function (t) { return t.countId === countId; });
-  let html = '<div class="sheet-head"><div style="flex:1"><h2>การนับวันที่ ' + esc(c.date) + '</h2>' +
-    '<div class="sheet-sub">' + esc(monthLabel(c.month, true)) + (c.note ? ' · ' + esc(c.note) : '') + '</div></div></div>' +
+  const isLatest = state.counts[state.counts.length - 1] === c;
+  const balances = c.balances || c.after || {};
+
+  let html = '<div class="sheet-head"><div style="flex:1"><h2>นับเมื่อ ' + esc(c.date) + '</h2>' +
+    '<div class="sheet-sub">' + (c.note ? esc(c.note) : 'ภาพทรัพย์สิน ณ เวลานั้น') + '</div></div></div>' +
     '<div class="card" style="margin-top:12px;background:var(--surface-2)">' +
-      '<div class="kv"><span class="k">' + (c.drop < 0 ? 'เงินเพิ่มขึ้น' : 'เงินหายไป') + '</span><span class="v num">' + money(Math.abs(c.drop)) + '</span></div>' +
-      '<div class="kv"><span class="k">ติ๊กว่าจ่ายแล้ว</span><span class="v num">' + money(c.ticked) + '</span></div>' +
-      '<div class="kv"><span class="k">ลงซองจิปาถะ</span><span class="v num">' + money(c.misc) + '</span></div>' +
+      '<div class="kv"><span class="k">สินทรัพย์รวม</span><span class="v num">' + money(c.assets) + '</span></div>' +
+      '<div class="kv"><span class="k">หนี้สินรวม</span><span class="v num">' + money(c.debts) + '</span></div>' +
+      '<div class="kv"><span class="k">สินทรัพย์สุทธิ</span><span class="v num">' + money(c.netWorth) + '</span></div>' +
     '</div>';
 
-  html += '<div class="section-title"><span>รายการที่บันทึก · ' + rows.length + '</span></div><div class="hist">';
-  if (!rows.length) html += '<div class="empty">ไม่มีรายการ</div>';
-  rows.forEach(function (t) {
-    const e = envelope(t.envelopeId);
-    html += '<div class="row"><span class="emoji">' + esc(e ? e.emoji : '❓') + '</span>' +
-      '<div style="min-width:0"><div class="nm">' + esc(e ? e.name : 'ซองที่ถูกลบ') + '</div>' +
-      '<div class="sub">' + esc(t.note || '') + '</div></div>' +
-      '<div class="amt num">' + money(t.amount) + '</div></div>';
-  });
-  html += '</div>';
-
-  html += '<div class="section-title"><span>ยอดบัญชี ก่อน → หลัง</span></div><div class="hist">';
-  Object.keys(c.after).forEach(function (accId) {
+  html += '<div class="section-title"><span>ยอดบัญชีที่นับ</span></div><div class="hist">';
+  const keys = Object.keys(balances);
+  if (!keys.length) html += '<div class="empty">ไม่มีข้อมูลบัญชีของรอบนี้</div>';
+  keys.forEach(function (accId) {
     const a = account(accId);
     if (!a) return;
-    const d = c.after[accId] - c.before[accId];
+    const bfr = (c.before || {})[accId];
+    const d = bfr === undefined ? null : balances[accId] - bfr;
     html += '<div class="row">' + accountBadge(a) +
       '<div style="min-width:0"><div class="nm">' + esc(a.name) + '</div>' +
-      '<div class="sub">' + money(c.before[accId]) + ' → ' + money(c.after[accId]) + '</div></div>' +
-      '<div class="amt num ' + (d < 0 ? 'delta down' : d > 0 ? 'delta up' : '') + '">' + (d > 0 ? '+' : '') + money(d) + '</div></div>';
+      (d === null ? '' : '<div class="sub">' + money(bfr) + ' → ' + money(balances[accId]) + '</div>') + '</div>' +
+      '<div class="amt num">' + money(balances[accId]) + '</div></div>';
   });
   html += '</div>';
 
   html += '<div class="btn-grid">' +
-    '<button class="btn danger" data-action="undo-count" data-id="' + c.id + '">ยกเลิกการนับนี้</button>' +
+    '<button class="btn danger" data-action="del-count" data-id="' + c.id + '">ลบรายการนี้</button>' +
     '<button class="btn ghost" data-action="close-sheet">ปิด</button>' +
-  '</div>';
+  '</div>' +
+  (isLatest ? '<div class="muted" style="margin-top:10px;text-align:center">ลบรายการล่าสุดจะคืนยอดบัญชีกลับไปเป็นก่อนนับให้ด้วย</div>' : '');
   openSheet(html);
 }
 
@@ -2210,55 +1667,32 @@ document.addEventListener('click', function (ev) {
   if (act === 'add-debt') { debtSheet(null); return; }
   if (act === 'edit-debt') { debtSheet(id); return; }
 
-  if (act === 'stats-range') { statsRange = parseInt(el.dataset.n, 10); renderStats(); return; }
-  if (act === 'stats-view') { statsTable = !statsTable; renderStats(); return; }
+  if (act === 'nw-view') { nwTable = !nwTable; renderOverview(); return; }
 
   if (act === 'start-count') { startCount(); return; }
   if (act === 'open-count') { countDetailSheet(id); return; }
-
-  if (act === 'count-step') {
-    countDraft.step = parseInt(el.dataset.step, 10);
-    countSheet();
-    return;
-  }
-
-  if (act === 'count-pick') {
-    const input = el.querySelector('input[data-paid]');
-    if (countDraft.paid[id] !== undefined) {
-      delete countDraft.paid[id];
-      el.classList.remove('on');
-      if (input) input.disabled = true;
-    } else {
-      const budget = budgetOf(id, state.activeMonth), already = spentOf(id, state.activeMonth);
-      const suggested = Math.max(0, Math.round((budget - already) * 100) / 100);
-      countDraft.paid[id] = input ? (Number(input.value) || suggested) : suggested;
-      el.classList.add('on');
-      if (input) input.disabled = false;
-    }
-    countDraft.miscOverride = null;  // ให้คำนวณส่วนต่างใหม่ตามที่ติ๊ก
-    updateCountTally();
-    return;
-  }
 
   if (act === 'count-save') {
     const res = saveCount(countDraft);
     countDraft = null;
     closeSheet(); render();
-    toast(res.income > 0
-      ? 'บันทึกแล้ว · เงินเข้า ' + money(res.income)
-      : 'บันทึกแล้ว · ใช้ไป ' + money(res.drop) + (res.misc > 0 ? ' (จิปาถะ ' + money(res.misc) + ')' : ''));
+    toast(res.diff === 0
+      ? 'บันทึกแล้ว · สินทรัพย์สุทธิ ' + money(res.netWorth)
+      : 'บันทึกแล้ว · ' + (res.diff > 0 ? 'เพิ่มขึ้น ' : 'ลดลง ') + money(Math.abs(res.diff)));
     return;
   }
 
-  if (act === 'undo-count') {
-    confirmSheet('ยกเลิกการนับรอบนี้?', 'ยอดบัญชีและรายการที่บันทึกจากรอบนี้จะกลับไปเป็นเหมือนก่อนนับ',
-      'data-action="undo-count-confirm" data-id="' + id + '"');
+  if (act === 'del-count') {
+    const isLatest = state.counts.length && state.counts[state.counts.length - 1].id === id;
+    confirmSheet('ลบรายการนับนี้?',
+      isLatest ? 'ยอดบัญชีจะกลับไปเป็นเหมือนก่อนนับ' : 'ลบออกจากประวัติและกราฟ ยอดบัญชีปัจจุบันไม่เปลี่ยน',
+      'data-action="del-count-confirm" data-id="' + id + '"');
     return;
   }
-  if (act === 'undo-count-confirm') {
-    undoCount(id);
+  if (act === 'del-count-confirm') {
+    const restored = removeCount(id);
     closeSheet(); render();
-    toast('ยกเลิกการนับแล้ว');
+    toast(restored ? 'ลบแล้ว · คืนยอดบัญชีให้เรียบร้อย' : 'ลบออกจากประวัติแล้ว');
     return;
   }
 
@@ -2291,21 +1725,6 @@ document.addEventListener('click', function (ev) {
     return;
   }
 
-  if (act === 'toggle-bill') {
-    const month = el.dataset.month;
-    const bills = billsOf(id);
-    if (bills[month]) delete bills[month]; else bills[month] = true;
-    save(); renderBills(); return;
-  }
-
-  if (act === 'del-txn') {
-    removeTxn(id);
-    envSheet(el.dataset.env, 'spend');
-    render();
-    toast('ลบรายการแล้ว');
-    return;
-  }
-
   if (act === 'del-move') {
     const i = state.transfers.findIndex(function (t) { return t.id === id; });
     if (i >= 0) { state.transfers.splice(i, 1); save(); }
@@ -2316,16 +1735,13 @@ document.addEventListener('click', function (ev) {
   }
 
   if (act === 'del-env') {
-    confirmSheet('ลบซองนี้?', 'ประวัติการจ่ายและการโยกเงินของซองนี้จะถูกลบด้วย', 'data-action="del-env-confirm" data-id="' + id + '"');
+    confirmSheet('ลบซองนี้?', 'ยอดจ่ายจริงและการโยกเงินของซองนี้จะถูกลบด้วย', 'data-action="del-env-confirm" data-id="' + id + '"');
     return;
   }
   if (act === 'del-env-confirm') {
     state.envelopes = state.envelopes.filter(function (e) { return e.id !== id; });
-    state.txns = state.txns.filter(function (t) { return t.envelopeId !== id; });
     state.transfers = state.transfers.filter(function (t) { return t.fromEnvelopeId !== id && t.toEnvelopeId !== id; });
-    delete state.bills[id];
-    // ซองปลายทางของส่วนต่างต้องมีอยู่เสมอ
-    if (state.miscEnvelopeId === id) state.miscEnvelopeId = (state.envelopes[0] || {}).id || '';
+    delete state.actuals[id];
     save(); closeSheet(); render(); toast('ลบซองแล้ว');
     return;
   }
@@ -2361,13 +1777,12 @@ document.addEventListener('click', function (ev) {
   }
 });
 
-// ช่องกรอกใน wizard นับเงิน — อัปเดตยอดสรุปสดโดยไม่ re-render ทั้งชีต (จะได้ไม่หลุดโฟกัส)
+// ช่องกรอกในหน้านับเงิน — อัปเดตยอดสรุปสดโดยไม่ re-render ทั้งชีต (จะได้ไม่หลุดโฟกัส)
 document.addEventListener('input', function (ev) {
   const t = ev.target;
   if (!countDraft) return;
   if (t.dataset.acc) {
     countDraft.balances[t.dataset.acc] = t.value === '' ? '' : Number(t.value);
-    countDraft.miscOverride = null;
     const row = t.closest('.cnt-row');
     const acc = account(t.dataset.acc);
     if (row && acc) {
@@ -2379,24 +1794,8 @@ document.addEventListener('input', function (ev) {
       }
     }
     updateCountTally();
-  } else if (t.dataset.paid) {
-    countDraft.paid[t.dataset.paid] = t.value === '' ? 0 : Number(t.value);
-    countDraft.miscOverride = null;
-    updateCountTally();
-  } else if (t.dataset.misc) {
-    countDraft.miscOverride = t.value === '' ? 0 : Number(t.value);
   } else if (t.dataset.countNote) {
     countDraft.note = t.value;
-  }
-});
-
-document.addEventListener('change', function (ev) {
-  const t = ev.target;
-  if (t.dataset.miscEnv && countDraft) { countDraft.miscEnvelopeId = t.value; return; }
-  if (t.dataset.setting === 'misc-envelope') {
-    state.miscEnvelopeId = t.value;
-    save(); renderAccounts();
-    toast('ตั้งซองปลายทางแล้ว');
   }
 });
 
@@ -2411,12 +1810,11 @@ document.addEventListener('submit', function (ev) {
 
   if (kind === 'spend') {
     const amount = num('amount');
-    if (amount <= 0) { toast('ใส่จำนวนเงินมากกว่า 0'); return; }
-    const accId = fd.get('accountId');
-    if (!accId) { toast('เลือกบัญชีที่จ่าย'); return; }
-    const ticked = recordSpend(id, accId, amount, (fd.get('note') || '').toString().trim());
+    if (amount < 0) { toast('ยอดต้องไม่ติดลบ'); return; }
+    setActual(id, state.activeMonth, amount);
     closeSheet(); render();
-    toast(ticked ? 'บันทึก ' + money(amount) + ' · ติ๊กบิลเดือนนี้ให้แล้ว' : 'บันทึก ' + money(amount) + ' แล้ว');
+    const env = envelope(id);
+    toast((env ? env.name + ' · ' : '') + 'จ่ายจริง ' + money(amount));
     return;
   }
 
@@ -2440,8 +1838,7 @@ document.addEventListener('submit', function (ev) {
       name: (fd.get('name') || '').toString().trim(),
       budget: num('budget'),
       categoryId: fd.get('categoryId'),
-      ownerId: fd.get('ownerId'),
-      recurring: fd.get('recurring') === 'on'
+      ownerId: fd.get('ownerId')
     };
     if (!data.name) { toast('ใส่ชื่อซอง'); return; }
     if (kind === 'env-add') {
