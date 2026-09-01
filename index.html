@@ -1229,12 +1229,14 @@ function checklistHTML(m, compact) {
     const e = entryOf(i.id, m);
     const amt = e.paid ? (e.amount || budgetOf(i.id)) : budgetOf(i.id);
     const linked = account(i.linkedAccountId);
+    const ownerName = owner(i.ownerId) ? owner(i.ownerId).name : '';
     const bits = [];
     if (e.paid && (e.principal || e.interest)) {
       bits.push('เงินต้น ' + money(e.principal) + ' · ดอกเบี้ย ' + money(e.interest));
     } else if (linked) {
       bits.push('ผูกกับ ' + linked.name);
     }
+    if (ownerName) bits.push(ownerName);
     html += '<div class="pick' + (e.paid ? ' on' : '') + '"' + (idx === 0 ? ' style="padding-top:0"' : '') + '>' +
       '<button class="box" data-action="toggle-item" data-id="' + i.id + '" ' +
         'aria-pressed="' + e.paid + '" aria-label="ติ๊กว่าจ่าย ' + esc(i.name) + '">✓</button>' +
@@ -1255,12 +1257,15 @@ function checklistHTML(m, compact) {
   variable.forEach(function (i, idx) {
     const b = budgetOf(i.id), sp = spentOf(i.id, m), rest = b - sp;
     const st = statusOf(b, sp);
+    const ownerName = owner(i.ownerId) ? owner(i.ownerId).name : '';
+    const subParts = ['ใช้ไป ' + money(sp) + ' จาก ' + money(b) + ' · ' +
+      (rest >= 0 ? 'เหลือให้ใช้อีก ' + money(rest) : 'เกินงบ ' + money(-rest))];
+    if (ownerName) subParts.push(ownerName);
     html += '<div class="budrow is-' + st + '"' + (idx === 0 ? ' style="margin-top:0"' : '') + '>' +
       '<div class="top">' +
         '<span class="emoji">' + esc(i.emoji) + '</span>' +
         '<span style="min-width:0;flex:1"><span class="nm">' + esc(i.name) + '</span>' +
-        '<span class="sub">ใช้ไป ' + money(sp) + ' จาก ' + money(b) + ' · ' +
-          (rest >= 0 ? 'เหลือให้ใช้อีก ' + money(rest) : 'เกินงบ ' + money(-rest)) + '</span></span>' +
+        '<span class="sub">' + esc(subParts.join(' · ')) + '</span></span>' +
         '<button class="btn ghost sm spend" data-action="edit-item" data-id="' + i.id + '">ใส่ยอด</button>' +
       '</div>' + barHTML(sp, b) +
     '</div>';
@@ -1642,8 +1647,9 @@ function countSheet() {
       const nv = countDraft.balances[a.id];
       const now = (nv === '' || nv === undefined || nv === null) ? old : Number(nv) || 0;
       const d = now - old;
+      const ownerName = owner(a.ownerId) ? owner(a.ownerId).name : '';
       html += '<div class="cnt-row">' + accountBadge(a) +
-        '<div style="min-width:0"><div class="nm">' + esc(a.name) + '</div>' +
+        '<div style="min-width:0"><div class="nm">' + esc(a.name) + (ownerName ? ' <span class="muted">(' + esc(ownerName) + ')</span>' : '') + '</div>' +
         '<div class="was">' + (isDebt(a) ? 'ยอดหนี้เดิม ' : 'เดิม ') + money(old) + '</div></div>' +
         '<div style="margin-left:auto;flex:none">' +
           '<input type="number" inputmode="decimal" step="0.01" data-acc="' + a.id + '" value="' + now + '" aria-label="ยอดของ ' + esc(a.name) + '">' +
